@@ -12,19 +12,29 @@ def constant_datapoints(df):
 
 def timestamp_columns(df):
 
-    timestamp_cols = [ #Detect ISO-8601 timestamp columns
+    timestamp_cols = [
         col for col in df.columns
-        if df[col].astype(str).str.contains(r"\d{4}-\d{2}-\d{2}T").any()
+        if df[col].astype(str).str.contains(
+            r"\d{4}-\d{2}-\d{2}[T ]",
+            regex=True
+        ).any()
     ]
 
     if not timestamp_cols:
-        print("No ISO-8601 timestamp columns found.")
+        print("No timestamp columns found.")
         return pd.DataFrame()
 
-    # Convert to datetime
     ts_df = df[timestamp_cols].copy()
+
     for col in timestamp_cols:
-        ts_df[col] = pd.to_datetime(ts_df[col], errors="coerce")
+        ts_df[col] = pd.to_datetime(
+            ts_df[col],
+            errors="coerce",
+            utc=True,
+            format="mixed",
+        )
+
+    print("Timestamp columns:", len(timestamp_cols))
     return ts_df
 
 def categorical_columns(
