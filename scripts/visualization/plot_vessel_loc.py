@@ -2,6 +2,7 @@ from pathlib import Path
 import folium
 import numpy as np
 import pandas as pd
+import config.config as cfg
 
 def get_coordinates(
     df: pd.DataFrame,
@@ -38,7 +39,8 @@ def plot_vessel_loc(
         location=[coords[lat_col].mean(), coords[lon_col].mean()],
         zoom_start=6,
         #tiles="OpenStreetMap"
-        tiles="CartoDB positron"
+        #tiles="CartoDB positron"
+        tiles="CartoDB Voyager",
     )
 
     # Draw track line (usually the most important part)
@@ -77,8 +79,11 @@ def plot_vessel_loc(
     m.save(out_html)
 
 def main():
-    df_raw = pd.read_csv(paths.file_RAW)
-    plot_vessel_loc(df_raw, out_html=paths.file_VESSEL_TRACK)
+    df_raw = pd.read_csv(cfg.DS1_RAW)
+    plot_vessel_loc(df_raw, out_html= "DS1_vessel_track.html")
+
+    df_raw = pd.read_csv(cfg.DS2_RAW)
+    plot_vessel_loc(df_raw, out_html= "DS2_vessel_track.html")
 
 if __name__ == "__main__":
     main()
