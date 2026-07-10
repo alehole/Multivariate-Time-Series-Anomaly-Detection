@@ -155,21 +155,41 @@ def analyze_folder(
         )
 
         print(f"[OK] {tag}: wrote analysis to {out_dir}")
+def write_timestamp_reports(
+    raw_csv: Path,
+    out_dir: Path,
+    prefix: str,
+):
+    df = pd.read_csv(raw_csv)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
+    for col in ["Created", "Modified", "Inserted"]:
+        if col not in df.columns:
+            continue
+
+        report = timestamp_report(df, ts_col=col)
+
+        pd.DataFrame([report]).to_csv(
+            out_dir / f"{prefix}_timestamp_report_{col}.csv",
+            index=False,
+        )
 
 def main():
     df_raw = pd.read_csv(cfg.DS1_RAW)
     EDA_DIR = cfg.DATA_PATH / "EDA"
     EDA_DIR.mkdir(parents=True, exist_ok=True)
 
-    # --- Timestamp report ---
-    for col in ["Created", "Modified", "Inserted"]:
-        if col in df_raw.columns:
-            ts_report = timestamp_report(df_raw, ts_col=col)
-            ts_df = pd.DataFrame([ts_report])
+    write_timestamp_reports(
+        cfg.DS1_RAW,
+        EDA_DIR / "DS1",
+        "DS1",
+    )
 
-            ts_df.to_csv(EDA_DIR / f"timestamp_report_{col}.csv", index=False)
-
+    write_timestamp_reports(
+        cfg.DS2_RAW,
+        EDA_DIR / "DS2",
+        "DS2",
+    )
 
     analyze_folder(
         base_dir=Path(cfg.DATA_PATH /"subsystems" / "DS1" / "NUMERIC"),
@@ -182,8 +202,6 @@ def main():
         out_root=Path(EDA_DIR / "DS2"),
         ts_col_for_dt="Created",
     )
-
-
 
 if __name__ == "__main__":
     main()
