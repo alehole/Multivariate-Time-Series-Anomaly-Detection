@@ -93,7 +93,7 @@ def main():
     split_csv_by_contains_rules(
         input_csv=Path(cfg.DS1_CATEGORIZED_DIR / "DS1_NUMERIC.csv") ,
         contains_rules=tag_defs,
-        out_dir= Path(cfg.DATA_PATH /"subsystems" / "DS1"),
+        out_dir= Path(cfg.DATA_PATH /"subsystems" / "DS1" / "NUMERIC"),
         timestamp_cols=timestamp_cols,
         overwrite=True,
     )
@@ -101,7 +101,7 @@ def main():
     split_csv_by_contains_rules(
         input_csv=Path(cfg.DS1_CATEGORIZED_DIR / "DS1_BOOLEAN.csv") ,
         contains_rules=tag_defs,
-        out_dir= Path(cfg.DATA_PATH /"subsystems" / "DS1"),
+        out_dir= Path(cfg.DATA_PATH /"subsystems" / "DS1" /"BOOLEAN" ),
         timestamp_cols=timestamp_cols,
         overwrite=True,
     )
@@ -109,7 +109,7 @@ def main():
     split_csv_by_contains_rules(
         input_csv=Path(cfg.DS2_CATEGORIZED_DIR / "DS2_NUMERIC.csv") ,
         contains_rules=tag_defs,
-        out_dir= Path(cfg.DATA_PATH /"subsystems" / "DS2"),
+        out_dir= Path(cfg.DATA_PATH /"subsystems" / "DS2" / "NUMERIC"),
         timestamp_cols=timestamp_cols,
         overwrite=True,
     )
@@ -117,7 +117,7 @@ def main():
     split_csv_by_contains_rules(
         input_csv=Path(cfg.DS2_CATEGORIZED_DIR / "DS2_BOOLEAN.csv") ,
         contains_rules=tag_defs,
-        out_dir= Path(cfg.DATA_PATH /"subsystems" / "DS2"),
+        out_dir= Path(cfg.DATA_PATH /"subsystems" / "DS2" /"BOOLEAN"),
         timestamp_cols=timestamp_cols,
         overwrite=True,
     )
