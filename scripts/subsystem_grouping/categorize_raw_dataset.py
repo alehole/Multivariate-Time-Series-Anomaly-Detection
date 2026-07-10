@@ -2,6 +2,7 @@
 import pandas as pd
 from pathlib import Path
 import config.config as cfg
+
 def constant_datapoints(df):
     constant = df.columns[df.nunique(dropna=False) == 1].tolist()
     non_constant = df.columns[df.nunique(dropna=False) > 1].tolist()
@@ -116,8 +117,10 @@ def numeric_columns(
 def categorize_dataset(raw_csv, out_dir, prefix):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-
+    print("")
+    print(f"Reading dataset from {prefix}:")
     df = pd.read_csv(raw_csv, sep=",")
+    print(f"Dataset shape: {df.shape}")
 
     # Detect and store constant variables
     constant_cols = constant_datapoints(df)
