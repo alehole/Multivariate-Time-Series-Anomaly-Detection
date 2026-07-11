@@ -3,7 +3,7 @@ import seaborn as sns
 import pandas as pd
 from sklearn.preprocessing import RobustScaler, StandardScaler
 from pathlib import Path
-from src.config import paths
+import config.config as cfg
 
 
 def scale_data(data: pd.DataFrame, cols, scaler) -> pd.DataFrame:
@@ -102,16 +102,21 @@ def analyze_distribution_folder(
 
 
 def main():
+    DATASET: int = 1
+
     analyze_distribution_folder(
-        base_dir=paths.split_NUMERIC_DIR,
-        out_root=paths.EDA_DIR,
+        base_dir=Path(cfg.DATA_PATH / "subsystems" / f"DS{DATASET}" / "NUMERIC"),
+        out_root=Path(cfg.DATA_PATH / "EDA" / f"DS{DATASET}"),
         bins=50,
     )
+    DATASET: int = 2
     analyze_distribution_folder(
-        base_dir=paths.split_temp_DIR,
-        out_root=paths.EDA_DIR,
+        base_dir=Path(cfg.DATA_PATH / "subsystems" / f"DS{DATASET}" / "NUMERIC"),
+        out_root=Path(cfg.DATA_PATH / "EDA" / f"DS{DATASET}"),
         bins=50,
     )
+
+
 
 if __name__ == "__main__":
     main()
