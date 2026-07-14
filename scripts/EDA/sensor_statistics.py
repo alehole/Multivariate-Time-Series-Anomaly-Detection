@@ -156,12 +156,12 @@ def analyze_folder(
 
         print(f"[OK] {tag}: wrote analysis to {out_dir}")
 def write_timestamp_reports(
-    raw_csv: Path,
-    out_dir: Path,
-    prefix: str,
+    input_csv: Path,
+    output_dir: Path,
+    dataset_name: str,
 ):
-    df = pd.read_csv(raw_csv)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    df = pd.read_csv(input_csv)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     for col in ["Created", "Modified", "Inserted"]:
         if col not in df.columns:
@@ -170,38 +170,41 @@ def write_timestamp_reports(
         report = timestamp_report(df, ts_col=col)
 
         pd.DataFrame([report]).to_csv(
-            out_dir / f"{prefix}_timestamp_report_{col}.csv",
+            output_dir / f"{dataset_name}_timestamp_report_{col}.csv",
             index=False,
         )
 
 def main():
-    df_raw = pd.read_csv(cfg.DS1_RAW)
-    EDA_DIR = cfg.DATA_PATH / "EDA"
-    EDA_DIR.mkdir(parents=True, exist_ok=True)
+    eda_dir = cfg.DATA_PATH / "EDA"
+    eda_dir.mkdir(parents=True, exist_ok=True)
 
-    write_timestamp_reports(
-        cfg.DS1_RAW,
-        EDA_DIR / "DS1",
-        "DS1",
-    )
+    raw_files = {
+        1: cfg.DS1_RAW,
+        2: cfg.DS2_RAW,
+    }
 
-    write_timestamp_reports(
-        cfg.DS2_RAW,
-        EDA_DIR / "DS2",
-        "DS2",
-    )
+    for dataset, raw_csv in raw_files.items():
+        dataset_name = f"DS{dataset}"
+        dataset_eda_dir = eda_dir / dataset_name
 
-    analyze_folder(
-        base_dir=Path(cfg.DATA_PATH /"subsystems" / "DS1" / "NUMERIC"),
-        out_root=Path(EDA_DIR / "DS1"),
-        ts_col_for_dt="Created",
-    )
+        print(f"\nAnalyzing {dataset_name}...")
 
-    analyze_folder(
-        base_dir=Path(cfg.DATA_PATH /"subsystems" / "DS2" / "NUMERIC"),
-        out_root=Path(EDA_DIR / "DS2"),
-        ts_col_for_dt="Created",
-    )
+        write_timestamp_reports(
+            input_csv=raw_csv,
+            output_dir=dataset_eda_dir,
+            dataset_name=dataset_name,
+        )
+
+        analyze_folder(
+            base_dir=(
+                cfg.DATA_PATH
+                / "subsystems"
+                / dataset_name
+                / "NUMERIC"
+            ),
+            out_root=dataset_eda_dir,
+            ts_col_for_dt="Created",
+        )
 
 if __name__ == "__main__":
     main()
