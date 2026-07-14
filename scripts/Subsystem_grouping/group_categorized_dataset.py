@@ -85,8 +85,11 @@ def load_json(path: str | Path) -> dict:
         return json.load(f)
 
 def main():
+    print(Path(cfg.BASE_PROJ_DIR.parent / "tag_definitions.json"))
+
+
     tag_defs  = load_json(
-        Path(cfg.BASE_PROJ_DIR /  "tag_definitions.json")
+        Path(cfg.BASE_PROJ_DIR.parent /  "tag_definitions.json")
     )
     timestamp_cols = ("Created", "Modified", "Inserted")
 
