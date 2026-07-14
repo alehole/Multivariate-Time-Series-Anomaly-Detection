@@ -95,6 +95,8 @@ def convert_timestamp_format(
     return df
 
 def main():
+    output_dir = cfg.DATA_PATH / "train_test_split"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     ds1_generator_path = cfg.DATA_PATH / "subsystems" / f"DS{1}" / "NUMERIC" / "AE_PORT.csv"
     ds1_train_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{1}_generator_train.csv"

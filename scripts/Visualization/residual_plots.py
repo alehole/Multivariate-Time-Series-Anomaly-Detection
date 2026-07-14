@@ -1,0 +1,133 @@
+from __future__ import annotations
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from torch import Tensor
+
+def _plot_residual_series(
+    time_values,
+    residual: np.ndarray,
+    target_cols: list[str],
+    axes=None,
+    anomaly_masks: list[np.ndarray] | None = None,
+    label: str = "Residual",
+    anomaly_threshold: float = 3.0,
+    show_legend: bool = False,
+):
+    created_fig = False
+
+    if axes is None:
+        fig, axes = plt.subplots(len(target_cols), 1, figsize=(14, 8), sharex=True)
+        if len(target_cols) == 1:
+            axes = [axes]
+        created_fig = True
+
+    for i, col in enumerate(target_cols):
+        ax = axes[i]
+        y = residual[:, i]
+
+        ax.plot(time_values, y, label=label)
+        ax.axhline(0.0, linestyle="--", color="black")
+        ax.axhline(anomaly_threshold, linestyle=":", color="red")
+        ax.axhline(-anomaly_threshold, linestyle=":", color="red")
+
+        ax.set_ylabel("Residual ΔT (°C)")
+        ax.set_title(f"Prediction residual – {col} | threshold = ±{anomaly_threshold:.1f} °C")
+        ax.grid(True)
+        if anomaly_masks is not None:
+            mask = anomaly_masks[i]
+            ax.scatter(
+                np.asarray(time_values)[mask],
+                y[mask],
+                color="red",
+                s=10,
+                label="Anomaly" if show_legend else None,
+            )
+
+        if show_legend:
+            ax.legend()
+
+    axes[-1].set_xlabel("Time")
+
+
+    if created_fig:
+        plt.tight_layout()
+        plt.show()
+
+def plot_residuals_inference(
+    data: pd.DataFrame,
+    residual: np.ndarray,
+    target_cols: list[str],
+    ts_col: str = "Created",
+    anomaly_threshold: float = 3.0,
+):
+    t = data[ts_col].to_numpy()
+
+    anomaly_masks = [
+        data[f"{col}_anomaly"].to_numpy(dtype=bool)
+        for col in target_cols
+    ]
+
+    _plot_residual_series(
+        time_values=t,
+        residual=residual,
+        target_cols=target_cols,
+        anomaly_masks=anomaly_masks,
+        label="Residual",
+        anomaly_threshold=anomaly_threshold,
+        show_legend=False,
+    )
+
+def plot_residuals_profiles(
+    data: pd.DataFrame,
+    pred_c: np.ndarray,
+    test_mask: Tensor,
+    test_profiles: list[int],
+    target_cols: list[str],
+    y_scaler,
+    ts_col: str = "Created",
+    anomaly_threshold: float = 3.0,
+):
+    plot_df = data.loc[:, [ts_col, "profile_id"] + target_cols].copy()
+    test_df = plot_df.loc[
+        plot_df["profile_id"].isin(test_profiles),
+        [ts_col, "profile_id"] + target_cols
+    ].copy()
+    test_df = test_df.sort_values(["profile_id", ts_col])
+
+    fig, axes = plt.subplots(len(target_cols), 1, figsize=(16, 9), sharex=True)
+    if len(target_cols) == 1:
+        axes = [axes]
+
+    for i, (pid, y_df) in enumerate(test_df.groupby("profile_id", sort=False)):
+        y_true = y_scaler.inverse_transform(
+            y_df[target_cols].reset_index(drop=True).to_numpy()
+        )
+
+        y_pred = pred_c[i, :len(y_true), :]
+        mask_i = test_mask[i, :len(y_true)].cpu().numpy().astype(bool)
+
+        y_true = y_true[mask_i]
+        y_pred = y_pred[mask_i]
+        t = y_df[ts_col].to_numpy()[mask_i]
+
+        residual = y_true - y_pred
+
+        anomaly_masks = [
+            np.abs(residual[:, j]) > anomaly_threshold
+            for j in range(len(target_cols))
+        ]
+
+        _plot_residual_series(
+            time_values=t,
+            residual=residual,
+            target_cols=target_cols,
+            axes=axes,
+            anomaly_masks=anomaly_masks,
+            label=f"Profile {pid}" if len(test_profiles) > 1 else "Residual",
+            anomaly_threshold=anomaly_threshold,
+            show_legend=(len(test_profiles) > 1 and i == 0),
+        )
+
+    plt.tight_layout()
+    plt.show()
