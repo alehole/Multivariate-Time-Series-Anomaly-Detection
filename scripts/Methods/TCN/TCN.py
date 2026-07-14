@@ -1,0 +1,118 @@
+from __future__ import annotations
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class TemporalBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        dilation,
+        dropout=0.1,
+    ):
+        super().__init__()
+
+        padding = (kernel_size - 1) * dilation
+
+        self.conv1 = nn.Conv1d(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding=padding,
+            dilation=dilation,
+        )
+
+        self.conv2 = nn.Conv1d(
+            out_channels,
+            out_channels,
+            kernel_size,
+            padding=padding,
+            dilation=dilation,
+        )
+
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+
+        self.downsample = (
+            nn.Conv1d(in_channels, out_channels, 1)
+            if in_channels != out_channels
+            else None
+        )
+
+    def forward(self, x):
+
+        out = self.conv1(x)
+
+        # causal crop
+        out = out[:, :, :x.size(2)]
+
+        out = self.relu(out)
+        out = self.dropout(out)
+
+        out = self.conv2(out)
+        out = out[:, :, :x.size(2)]
+
+        out = self.relu(out)
+        out = self.dropout(out)
+
+        residual = x if self.downsample is None else self.downsample(x)
+
+        return self.relu(out + residual)
+
+
+class TCNBaseline(nn.Module):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        channels=(32, 64, 64),
+        kernel_size=3,
+        dropout=0.1,
+    ):
+        super().__init__()
+
+        layers = []
+
+        in_ch = input_size
+
+        for i, out_ch in enumerate(channels):
+
+            dilation = 2 ** i
+
+            layers.append(
+                TemporalBlock(
+                    in_channels=in_ch,
+                    out_channels=out_ch,
+                    kernel_size=kernel_size,
+                    dilation=dilation,
+                    dropout=dropout,
+                )
+            )
+
+            in_ch = out_ch
+
+        self.network = nn.Sequential(*layers)
+
+        self.head = nn.Conv1d(
+            in_ch,
+            output_size,
+            kernel_size=1,
+        )
+
+    def forward(self, x):
+
+        # (B,T,F) -> (B,F,T)
+        x = x.transpose(1, 2)
+
+        x = self.network(x)
+
+        x = self.head(x)
+
+        # (B,F,T) -> (B,T,F)
+        x = x.transpose(1, 2)
+
+        return x
