@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-import config.config as cfg
+import config as cfg
 
 def timestamp_report(df, ts_col: str) -> dict:
     s = df[ts_col]      # Extract timestamp column named "ts_col"

@@ -1,7 +1,6 @@
-
 import pandas as pd
 from pathlib import Path
-import config.config as cfg
+import config as cfg
 
 def constant_datapoints(df):
     constant = df.columns[df.nunique(dropna=False) == 1].tolist()

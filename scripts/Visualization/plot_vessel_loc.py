@@ -2,7 +2,7 @@ from pathlib import Path
 import folium
 import numpy as np
 import pandas as pd
-import config.config as cfg
+import config as cfg
 
 def get_coordinates(
     df: pd.DataFrame,

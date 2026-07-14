@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from pathlib import Path
-
-import config.config as cfg
+import config as cfg
 
 def total_time_per_state(df, ts_col="Created", state_col="state"):
     d = df.copy()

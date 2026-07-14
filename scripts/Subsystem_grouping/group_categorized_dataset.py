@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import pandas as pd
-import config.config as cfg
+import config as cfg
 from typing import Iterable
 
 def split_csv_by_contains_rules(

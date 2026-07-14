@@ -3,7 +3,7 @@ import seaborn as sns
 import pandas as pd
 from sklearn.preprocessing import RobustScaler, StandardScaler
 from pathlib import Path
-import config.config as cfg
+import config as cfg
 
 
 def scale_data(data: pd.DataFrame, cols, scaler) -> pd.DataFrame:

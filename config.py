@@ -3,9 +3,9 @@ import platform
 
 OS_NAME = platform.system()
 
-BASE_PROJ_DIR = Path(__file__).resolve().parent
-
+BASE_PROJ_DIR = Path(__file__).resolve()
 DATA_PATH = BASE_PROJ_DIR.parent / "data"
+
 DS1_RAW = DATA_PATH /"raw" / "DS1"/"LiveData.csv"
 DS2_RAW = DATA_PATH /"raw" / "DS2"/"LiveData.csv"
 

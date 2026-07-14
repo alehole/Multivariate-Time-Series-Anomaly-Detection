@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
-from src.config import paths
+import config as cfg
 
 
 def plot_corr(corr: pd.DataFrame,
@@ -143,43 +143,22 @@ def loop_folder(
         )
 
 def main():
-    if False:
-        base_dir = paths.split_NUMERIC_DIR
-        out_path = paths.EDA_DIR
-
-        ts = ["Created", "Modified", "Inserted"]
-
-        loop_folder(
-            base_dir,
-            out_path,
-            ts,
-            show_plot=False,
-            method="spearman",
-            strong=0.9,
-            extremely_strong=0.98,
-        )
-
-        #path = "../Correlation/AE_PORT/corr_matrix_AE_PORT_full.csv"
-        #df = pd.read_csv(path, index_col=0)
-        #plot_corr(df, show=True)
-
-    if True:
-        base_dir = paths.split_temp_DIR
-        out_path = paths.EDA_DIR
-
-        ts = ["Created", "Modified", "Inserted"]
+    data_root = Path(cfg.DATA_PATH)
+    ts_cols = ["Created", "Modified", "Inserted"]
+    print(data_root)
+    for dataset in [1, 2]:
+        base_dir = data_root / "subsystems" / f"DS{dataset}" / "NUMERIC"
+        out_path = data_root / "EDA" / f"DS{dataset}"
 
         loop_folder(
-            base_dir,
-            out_path,
-            ts,
+            base_dir=base_dir,
+            out_root=out_path,
+            ts_cols=ts_cols,
             show_plot=False,
             method="spearman",
-            strong=0.9,
+            strong=0.90,
             extremely_strong=0.98,
         )
-
-
 
 if __name__ == "__main__":
     main()
