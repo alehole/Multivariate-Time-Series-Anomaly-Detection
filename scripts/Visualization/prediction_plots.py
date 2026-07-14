@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from torch import Tensor
-from src.visualization.metrics import compute_metrics, add_metrics_box
+from Visualization.metrics  import compute_metrics, add_metrics_box
 
 
 def _plot_actual_vs_predicted_scatter(
