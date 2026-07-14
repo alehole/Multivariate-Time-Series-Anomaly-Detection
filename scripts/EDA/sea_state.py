@@ -277,58 +277,38 @@ def create_sea_state_file(
 
 
 def main():
-    ds1_input = (
-            Path(cfg.DS1_CATEGORIZED_DIR)
-            / "DS1_NUMERIC.csv"
-    )
+    for dataset in (1, 2):
+        dataset_name = f"DS{dataset}"
 
-    ds2_input = (
-            Path(cfg.DS2_CATEGORIZED_DIR)
-            / "DS2_NUMERIC.csv"
-    )
-    ds1_output = (
-        Path(cfg.DATA_PATH)
-        / "subsystems"
-        / "DS1"
-        / "state.csv"
-    )
+        input_csv = (
+            Path(cfg.DATA_PATH)
+            / "raw_categorized"
+            / dataset_name
+            / f"{dataset_name}_NUMERIC.csv"
+        )
 
-    ds2_output = (
-        Path(cfg.DATA_PATH)
-        / "subsystems"
-        / "DS2"
-        / "state.csv"
-    )
+        output_csv = (
+            Path(cfg.DATA_PATH)
+            / "subsystems"
+            / dataset_name
+            / "state.csv"
+        )
 
-    # ------------------------------------------------------------
-    # DS1
-    # ------------------------------------------------------------
-    df_ds1 = pd.read_csv(ds1_input)
+        print(f"\nProcessing {dataset_name}...")
 
-    state_ds1 = create_sea_state_file(
-        df_ds1,
-        output_csv=ds1_output,
-        plot=True,
-    )
+        df = pd.read_csv(input_csv)
 
-    totals_ds1 = total_time_per_state(state_ds1)
-    print("\nDS1 total time per state:")
-    print(totals_ds1)
+        state_df = create_sea_state_file(
+            df,
+            output_csv=output_csv,
+            plot=True,
+        )
 
-    # ------------------------------------------------------------
-    # DS2
-    # ------------------------------------------------------------
-    df_ds2 = pd.read_csv(ds2_input)
+        totals = total_time_per_state(state_df)
 
-    state_ds2 = create_sea_state_file(
-        df_ds2,
-        output_csv=ds2_output,
-        plot=True,
-    )
+        print(f"\n{dataset_name} total time per state:")
+        print(totals)
 
-    totals_ds2 = total_time_per_state(state_ds2)
-    print("\nDS2 total time per state:")
-    print(totals_ds2)
 
 if __name__ == "__main__":
     main()
