@@ -96,17 +96,28 @@ def add_frequency_stats(stats, x, dt):
 def sensor_statistics_summary(df):
     X = df.select_dtypes(include="number").copy() # Only numeric columns
     stats = pd.DataFrame(index=X.columns)
-    stats["mean"] = X.mean()            # Average value of the sensor over time
+
+    stats["mean"] = X.mean()            # Average value
     stats["median"] = X.median()        # Median
+
     stats["std"] = X.std()              # Standard deviation
+
+    # Lower quartiles
     stats["min"] = X.min()              # Minimum observed value
+    stats["p05"] = X.quantile(0.05)     # 5% of values are below this threshold
+    stats["p25"] = X.quantile(0.25)     # 25% of values are below this threshold
+
+    # Median / second quartile
+    stats["p50"] = X.quantile(0.50)
+
+    # Upper quartiles
+    stats["p75"] = X.quantile(0.75)     # 75% of values are below this threshold
+    stats["p95"] = X.quantile(0.95)     # 95% of values are below this threshold
     stats["max"] = X.max()              # Maximum observed value
+
     stats["range"] = stats["max"] - stats["min"]  # Operating range( max − min )
 
-    # 5th and 95th percentiles
-    stats["p05"] = X.quantile(0.05)     # 5% of values are below this threshold
-    stats["p95"] = X.quantile(0.95)     # 95% of values are below this threshold
-
+    # Coefficient of variation
     denom = stats["mean"].abs().replace(0, np.nan) # Avoid divide-by-zero in CV
     stats["cv"] = stats["std"] / denom # Coefficient of Variation - how large the variation is compared to the average value.
 
@@ -115,12 +126,15 @@ def sensor_statistics_summary(df):
     # Low  → discrete, constant, or slowly changing signal
     stats["unique_ratio"] = X.nunique(dropna=True) / len(X)
 
+    # Sequential variation
     d = X.diff()
     stats["change_rate_mean_abs"] = d.abs().mean()          # avg |Δx|
     stats["zero_change_frac"] = (d == 0).mean()             # fraction of unchanged steps
 
+    # Data quality
     stats["missing_frac"] = X.isna().mean() # Fraction of missing samples
 
+    # Distribution shape
     stats["skew"] = X.skew()         # Distribution asymmetry
     stats["kurtosis"] = X.kurtosis() # Tail heaviness / outlier tendency
 
