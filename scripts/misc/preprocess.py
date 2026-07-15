@@ -14,6 +14,10 @@ from scripts.EDA import (
     cross_correlation,
     plot_sensors,
 )
+from Visualization import (
+    plotly_plot,
+    plot_vessel_loc,
+)
 
 
 def delete_directory(directory: Path) -> None:
@@ -41,10 +45,12 @@ def main():
     #misc
     combine_csv.main()
     feature_engineering.main()
+    sea_state.main()
+    plotly_plot.main()
+    plot_vessel_loc.main()
 
     #EDA
     temperature_API.main()
-    sea_state.main()
     plot_sensor_distributions.main()
     sensor_statistics.main()
     correlation_analysis.main()
