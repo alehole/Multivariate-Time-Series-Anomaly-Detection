@@ -4,7 +4,16 @@ import shutil
 import config as cfg
 from scripts.Subsystem_grouping import group_categorized_dataset, categorize_raw_dataset
 from scripts.misc import combine_csv, feature_engineering
-from scripts.EDA import temperature_API, sea_state, plot_sensor_distributions, sensor_statistics, temperature_API, correlation_analysis
+from scripts.EDA import (
+    sea_state,
+    plot_sensor_distributions,
+    sensor_statistics,
+    temperature_API,
+    correlation_analysis,
+    auto_correlation,
+    cross_correlation,
+    plot_sensors,
+)
 
 
 def delete_directory(directory: Path) -> None:
@@ -39,6 +48,10 @@ def main():
     plot_sensor_distributions.main()
     sensor_statistics.main()
     correlation_analysis.main()
+    auto_correlation.main()
+    cross_correlation.main()
+    plot_sensors.main()
+
 
 
 if __name__ == "__main__":
