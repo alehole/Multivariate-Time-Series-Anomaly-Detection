@@ -143,22 +143,130 @@ def loop_folder(
         )
 
 def main():
-    data_root = Path(cfg.DATA_PATH)
-    ts_cols = ["Created", "Modified", "Inserted"]
-    print(data_root)
-    for dataset in [1, 2]:
-        base_dir = data_root / "subsystems" / f"DS{dataset}" / "NUMERIC"
-        out_path = data_root / "EDA" / f"DS{dataset}"
+    if False:
+        data_root = Path(cfg.DATA_PATH)
+        ts_cols = ["Created", "Modified", "Inserted"]
+        print(data_root)
+        for dataset in [1, 2]:
+            base_dir = data_root / "subsystems" / f"DS{dataset}" / "NUMERIC"
+            out_path = data_root / "EDA" / f"DS{dataset}"
 
-        loop_folder(
-            base_dir=base_dir,
-            out_root=out_path,
-            ts_cols=ts_cols,
-            show_plot=False,
-            method="spearman",
-            strong=0.90,
-            extremely_strong=0.98,
-        )
+            loop_folder(
+                base_dir=base_dir,
+                out_root=out_path,
+                ts_cols=ts_cols,
+                show_plot=False,
+                method="spearman",
+                strong=0.90,
+                extremely_strong=0.98,
+            )
+
+    dataset = 1
+    dataset_name = f"DS{dataset}"
+
+    csv_path = (
+        cfg.DATA_PATH
+        / "subsystems"
+        / dataset_name
+        / "NUMERIC"
+        / "AE_PORT.csv"
+    )
+    df = pd.read_csv(csv_path)
+
+    output_dir = (
+        cfg.DATA_PATH
+        / "EDA"
+        / dataset_name
+        / "AE_PORT"
+        / "correlation"
+    )
+    drop_cols = [
+        "POWER_kW_sq",
+        "AE PS RUNNING",
+        "AE PS POWER COUNTER",
+        "AE PORT CYL.1 EXH.GAS TEMP. DEV",
+        "AE PORT CYL.2 EXH.GAS TEMP. DEV",
+        "AE PORT CYL.3 EXH.GAS TEMP. DEV",
+        "AE PORT CYL.4 EXH.GAS TEMP. DEV",
+        "AE PORT CYL.5 EXH.GAS TEMP. DEV",
+        "AE PORT CYL.6 EXH.GAS TEMP. DEV",
+    ]
+    df = (
+        df.select_dtypes(include="number")
+        .drop(columns=[*drop_cols], errors="ignore")
+        .copy()
+    )
+
+    tag = f"{dataset_name}_AE_PORT"
+    corr_df = run_corr(
+        df,
+        output_dir,
+        tag=tag,
+        method="spearman",
+        strong=0.90,
+        extremely_strong=0.98,
+    )
+
+    plot_corr(
+        corr_df,
+        save_path=output_dir / f"correlation_matrix_{tag}.png",
+        show=True,
+    )
+
+
+    dataset = 2
+    dataset_name = f"DS{dataset}"
+
+    csv_path = (
+        cfg.DATA_PATH
+        / "subsystems"
+        / dataset_name
+        / "NUMERIC"
+        / "AE_STBD.csv"
+    )
+    df = pd.read_csv(csv_path)
+
+    output_dir = (
+        cfg.DATA_PATH
+        / "EDA"
+        / dataset_name
+        / "AE_STBD"
+        / "correlation"
+    )
+    drop_cols = [
+        "POWER_kW_sq",
+        "AE SB RUNNING",
+        "AE SB POWER COUNTER",
+        "AE STBD CYL.1 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.2 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.3 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.4 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.5 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.6 EXH.GAS TEMP. DEV",
+    ]
+    df = (
+        df.select_dtypes(include="number")
+        .drop(columns=[*drop_cols], errors="ignore")
+        .copy()
+    )
+
+    tag = f"{dataset_name}_AE_STBD"
+    corr_df = run_corr(
+        df,
+        output_dir,
+        tag=tag,
+        method="spearman",
+        strong=0.90,
+        extremely_strong=0.98,
+    )
+
+    plot_corr(
+        corr_df,
+        save_path=output_dir / f"correlation_matrix_{tag}.png",
+        show=True,
+    )
+
+
 
 if __name__ == "__main__":
     main()

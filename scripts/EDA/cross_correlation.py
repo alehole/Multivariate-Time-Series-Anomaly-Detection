@@ -222,10 +222,10 @@ def plot_ccf_reference_grid(
 
     if np.isfinite(dt_s):
         x_scale = dt_s / 60.0
-        x_label = "Lag [min] (ref leads if positive)"
+        x_label = "Lag [min]"
     else:
         x_scale = 1.0
-        x_label = "Lag [samples] (ref leads if positive)"
+        x_label = "Lag [samples]"
 
     for index, sig in enumerate(signals):
         ax = axes_flat[index]
@@ -236,13 +236,29 @@ def plot_ccf_reference_grid(
         ax.axhline(0.0, color="0.6", linewidth=0.8)
         ax.axvline(0.0, color="0.6", linewidth=0.8)
         ax.plot(lags, ccf.to_numpy(), linewidth=1.2)
+
+        ccf_values = ccf.to_numpy()
+        valid_values = ccf_values[np.isfinite(ccf_values)]
+
+        if valid_values.size:
+            y_min = valid_values.min()
+            y_max = valid_values.max()
+
+            y_range = y_max - y_min
+            margin = max(0.02, 0.10 * y_range)
+
+            ax.set_ylim(
+                max(-1.05, y_min - margin),
+                min(1.05, y_max + margin),
+            )
+
         ax.axvline(
             best_lag * x_scale,
             color="0.4",
             linewidth=0.8,
             linestyle="--",
         )
-        ax.set_ylim(-1.05, 1.05)
+        #ax.set_ylim(-1.05, 1.05)
         ax.set_title(sig, fontsize=8)
         ax.set_xlabel(x_label)
         ax.set_ylabel(f"CCF vs {ref_col}", fontsize=7)
@@ -253,10 +269,12 @@ def plot_ccf_reference_grid(
         axes_flat[index].axis("off")
 
     kind = "differenced" if difference else "original"
+    '''
     fig.suptitle(
         f"Cross-correlation against {ref_col} ({kind})",
         fontsize=14,
     )
+    '''
     fig.tight_layout(rect=(0, 0, 1, 0.98))
 
     if save_path is not None:
@@ -447,11 +465,69 @@ def main():
         output_dir,
         tag=f"{dataset_name}_AE_PORT",
         dt_s=dt_s,
-        max_lag=60,
+        max_lag=30,
         difference=False,
         ref_col="POWER_kW",
         strong=0.9,
     )
+
+    dataset = 2
+    dataset_name = f"DS{dataset}"
+
+    csv_path = (
+        cfg.DATA_PATH
+        / "subsystems"
+        / dataset_name
+        / "NUMERIC"
+        / "AE_STBD.csv"
+    )
+
+    output_dir = (
+        cfg.DATA_PATH
+        / "EDA"
+        / dataset_name
+        / "AE_STBD"
+        / "cross_correlation"
+    )
+
+    ts_cols = ["Created", "Modified", "Inserted"]
+
+    # NOTE: no trailing comma — otherwise drop_cols becomes a 1-tuple
+    # containing the list, and the .drop(columns=...) call misbehaves.
+    drop_cols = [
+        "POWER_kW_sq",
+        "AE SB RUNNING",
+        "AE SB POWER COUNTER",
+        "AE STBD CYL.1 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.2 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.3 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.4 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.5 EXH.GAS TEMP. DEV",
+        "AE STBD CYL.6 EXH.GAS TEMP. DEV",
+    ]
+
+    df = pd.read_csv(csv_path)
+    dt_s = get_sampling_interval(df, time_col="Created")
+
+    # Build the numeric analysis frame (same filtering as loop_folder).
+    x = (
+        df.select_dtypes(include="number")
+        .drop(columns=[*ts_cols, *drop_cols], errors="ignore")
+        .copy()
+    )
+    x = x.loc[:, x.nunique(dropna=True) > 1]
+
+    run_ccf(
+        x,
+        output_dir,
+        tag=f"{dataset_name}_AE_STBD",
+        dt_s=dt_s,
+        max_lag=30,
+        difference=False,
+        ref_col="POWER_kW",
+        strong=0.9,
+    )
+
 
 
 if __name__ == "__main__":
