@@ -1,7 +1,7 @@
 import pandas as pd
 
 from Methods.Blackbox.sequence_model_training import train_sequence_model
-from Methods.Blackbox.RNN.rnn_model import RNNBaseline
+from Methods.Blackbox.RNN.RNN import RNNBaseline
 from Methods.Blackbox.experiment_configs import (
     DEVICE,
     SENSOR_COLS,
