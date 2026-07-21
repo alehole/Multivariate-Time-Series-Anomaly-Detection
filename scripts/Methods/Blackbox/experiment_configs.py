@@ -6,7 +6,7 @@ import torch
 DEVICE = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
 )
-
+SEED = 42
 # ---------------------------------------------------------
 # Dataset configuration
 # ---------------------------------------------------------
@@ -15,6 +15,7 @@ TS_COL = "Created"
 WINDOW_STEPS = 300
 VAL_PROFILE_LEN = 3
 TEST_PROFILE_LEN = 3
+
 
 SENSOR_COLS = [
     "AE PORT GEN.U-WINDING TEMP.",
@@ -71,7 +72,6 @@ MODEL_CONFIG = {
     "kernel_size": 3,
     "dropout": 0.1,
 }
-
 
 # ---------------------------------------------------------
 # Training configuration

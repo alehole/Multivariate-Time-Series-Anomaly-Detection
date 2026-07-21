@@ -1,9 +1,8 @@
-import numpy as np
 import torch
-import torch.nn as nn
 from torch import Tensor
+from torch.nn import Module
 
-def masked_mse_loss(y_hat, y_true, mask):
+def masked_mse_loss_orig(y_hat, y_true, mask):
     """
     y_hat:  (B, T, F)
     y_true: (B, T, F)
@@ -18,6 +17,58 @@ def masked_mse_loss(y_hat, y_true, mask):
     return loss.sum() / mask.sum().clamp(min=1.0)
 
 
+
+
+def masked_mse_loss(
+    y_hat: Tensor,
+    y_true: Tensor,
+    mask: Tensor,
+) -> Tensor:
+    """
+    Calculate mean squared error over valid sequence positions.
+
+    Parameters
+    ----------
+    y_hat:
+        Predicted values with shape (B, T, F).
+    y_true:
+        Target values with shape (B, T, F).
+    mask:
+        Validity mask with shape (B, T), where 1 indicates
+        a valid time step and 0 indicates padding.
+
+    Returns
+    -------
+    Tensor
+        Scalar masked mean squared error.
+    """
+    if y_hat.shape != y_true.shape:
+        raise ValueError(
+            f"Prediction shape {y_hat.shape} does not match "
+            f"target shape {y_true.shape}."
+        )
+
+    if mask.shape != y_true.shape[:2]:
+        raise ValueError(
+            f"Mask shape {mask.shape} does not match "
+            f"batch and time dimensions {y_true.shape[:2]}."
+        )
+
+    # Convert from (B, T) to (B, T, 1).
+    mask = mask.unsqueeze(-1).to(
+        device=y_hat.device,
+        dtype=y_hat.dtype,
+    )
+
+    # Expand the mask to include every output feature.
+    mask = mask.expand_as(y_hat)
+
+    squared_error = (y_hat - y_true).pow(2)
+    masked_error = squared_error * mask
+
+    return masked_error.sum() / mask.sum().clamp(min=1.0)
+
+
 def train_sequence_model(
     model,
     x_train,
@@ -30,6 +81,7 @@ def train_sequence_model(
     n_epochs=200,
     lr=1e-3,
     weight_decay=1e-5,
+    max_grad_norm=1.0,
 ):
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -55,7 +107,11 @@ def train_sequence_model(
 
         loss.backward()
 
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+        torch.nn.utils.clip_grad_norm_(
+            model.parameters(),
+            max_norm=max_grad_norm,
+        )
 
         optimizer.step()
 
