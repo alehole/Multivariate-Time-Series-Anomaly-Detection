@@ -21,7 +21,8 @@ from scripts.misc.feature_engineering import ts_cols
 from Methods.Blackbox.profile_dataset import (
     train_val_test_split_profiles,
     scale_profile_data,
-    tensorize_profiles
+    tensorize_profiles,
+    create_profiles,
 )
 from Methods.Blackbox.common_BB_scripts import (
     save_sequence_model,
@@ -31,17 +32,61 @@ from Methods.Blackbox.common_BB_scripts import (
     set_reproducibility,
 )
 
+
+def load_and_prepare_data(
+    csv_path: str,
+) -> tuple[pd.DataFrame, float]:
+    """Load, select, and rename the required variables."""
+    data = pd.read_csv(csv_path)
+    data, dt_s = ts_cols(data, TS_COL)
+
+
+    data = data[[TS_COL, *SENSOR_COLS]].copy()
+    data = data.rename(columns=RENAME_MAP)
+
+    return data, dt_s
+
+
+
+
 def main():
     set_reproducibility(SEED)
+
+    train_path = "ds1_generator_test.csv"
+    test_path = "ds1_generator_train.csv"
+
 
     csv_path = "AE_PORT.csv"
     data = pd.read_csv(csv_path)
     data, dt_s = ts_cols(data, TS_COL)
     data = data[[TS_COL, *SENSOR_COLS]].copy()
     data = data.rename(columns=RENAME_MAP)
+
+    # -----------------------------------------------------
+    # Load separate datasets
+    # -----------------------------------------------------
+    train_data, train_dt_s = load_and_prepare_data(train_path)
+    test_data, test_dt_s = load_and_prepare_data(test_path)
+    data, dt_s = load_and_prepare_data(test_path)
+
     # -----------------------------------------------------
     # Train-validation-test split
     # -----------------------------------------------------
+    train_data, train_profiles = create_profiles(
+        train_data,
+        ts_col=TS_COL,
+        window_steps=WINDOW_STEPS,
+        dt_s=train_dt_s,
+    )
+
+    test_data, test_profiles = create_profiles(
+        test_data,
+        ts_col=TS_COL,
+        window_steps=WINDOW_STEPS,
+        dt_s=test_dt_s,
+    )
+
+
     data, train_profiles, val_profiles, test_profiles, profile_sizes = train_val_test_split_profiles(
         data,
         ts_col=TS_COL,
