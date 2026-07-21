@@ -149,58 +149,49 @@ def main():
     # -----------------------------------------------------
     ds1_generator_path = cfg.DATA_PATH / "subsystems" / f"DS{1}" / "NUMERIC" / "AE_PORT.csv"
     ds1_train_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{1}_generator_train.csv"
+    ds1_val_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{1}_generator_val.csv"
     ds1_test_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{1}_generator_test.csv"
-    split_csv(
-        input_csv=ds1_generator_path,
-        train_csv=ds1_train_generator_path_output,
-        test_csv=ds1_test_generator_path_output,
-        train_ratio=0.70,
-    )
 
-
-
+    if False:
+        split_csv_train_test(
+            input_csv=ds1_generator_path,
+            train_csv=ds1_train_generator_path_output,
+            test_csv=ds1_test_generator_path_output,
+            train_ratio=0.70,
+        )
+    if True:
+        split_csv_train_val_test(
+            input_csv=ds1_generator_path,
+            train_csv=ds1_train_generator_path_output,
+            val_csv=ds1_val_generator_path_output,
+            test_csv=ds1_test_generator_path_output,
+            train_ratio=0.75,
+            val_ratio=0.15,
+        )
 
     # -----------------------------------------------------
     # DS2
     # -----------------------------------------------------
     ds2_generator_path = cfg.DATA_PATH / "subsystems" / f"DS{2}" / "NUMERIC" / "AE_STBD.csv"
     ds2_train_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{2}_generator_train.csv"
+    ds2_val_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{2}_generator_val.csv"
     ds2_test_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{2}_generator_test.csv"
-    split_csv(
-        input_csv=ds2_generator_path,
-        train_csv=ds2_train_generator_path_output,
-        test_csv=ds2_test_generator_path_output,
-        train_ratio=0.75,
-    )
     if False:
-        sensor_cols = [
-            "AE PORT GEN.U-WINDING TEMP.",
-            "AE PORT GEN.V-WINDING TEMP.",
-            "AE PORT GEN.W-WINDING TEMP.",
-            "POWER_kW",
-            "AE_PS_EXH",
-            "AE PORT END BRG.TEMP.",
-            "AE PORT LUB.OIL TEMP.",
-            "AE PORT HT FW OUTLET TEMP.",
-            "AE PORT TC EXH.GAS OUT.TEMP.",
-            "FAN 3 TEMPERATURE",
-            "FAN 1 TEMPERATURE",
-            "LT FW TEMP.",
-            'AE PORT CYL.1 EXH.GAS TEMP.',
-            'AE PORT CYL.2 EXH.GAS TEMP.',
-            'AE PORT CYL.3 EXH.GAS TEMP.',
-            'AE PORT CYL.4 EXH.GAS TEMP.',
-            'AE PORT CYL.5 EXH.GAS TEMP.',
-            'AE PORT CYL.6 EXH.GAS TEMP.',
-        ]
-
-
-        filter_sensor_csv(
-            input_csv="AE_PORT_with_extra_TEMP.csv",
-            output_csv="ds1_subset.csv",
-            sensor_columns=sensor_cols,
+        split_csv_train_test(
+            input_csv=ds2_generator_path,
+            train_csv=ds2_train_generator_path_output,
+            test_csv=ds2_test_generator_path_output,
+            train_ratio=0.75,
         )
-
+    if True:
+        split_csv_train_val_test(
+            input_csv=ds2_generator_path,
+            train_csv=ds2_train_generator_path_output,
+            val_csv=ds2_val_generator_path_output,
+            test_csv=ds2_test_generator_path_output,
+            train_ratio=0.75,
+            val_ratio=0.15,
+        )
 
 
 if __name__ == '__main__':
