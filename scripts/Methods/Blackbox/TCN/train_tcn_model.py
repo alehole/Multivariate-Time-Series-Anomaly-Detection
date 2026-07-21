@@ -41,16 +41,15 @@ def load_and_prepare_data(
     data = data.rename(columns=RENAME_MAP)
 
     return data, dt_s
-
 def main():
     set_reproducibility(SEED)
 
     # -----------------------------------------------------
     # Load the three pre-split datasets
     # -----------------------------------------------------
-    train_path = "ds1_generator_train.csv"
-    val_path   = "ds1_generator_val.csv"
-    test_path  = "ds1_generator_test.csv"
+    train_path = "../ds1_generator_train.csv"
+    val_path   = "../ds1_generator_val.csv"
+    test_path  = "../ds1_generator_test.csv"
 
     train_data, train_dt_s = load_and_prepare_data(train_path)
     val_data,   val_dt_s   = load_and_prepare_data(val_path)

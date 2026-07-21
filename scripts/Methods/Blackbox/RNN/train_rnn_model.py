@@ -1,139 +1,176 @@
-import torch
 import pandas as pd
 
-from src.preprocess.feature_engineering import ts_cols, feature_processing
-from src.models.RNN.rnn_model import RNNBaseline, train_rnn_baseline
-from src.models.profile_dataset import (
-    train_val_test_split_profiles,
-    scale_profile_data,
+from Methods.Blackbox.sequence_model_training import train_sequence_model
+from Methods.Blackbox.RNN.rnn_model import RNNBaseline
+from Methods.Blackbox.experiment_configs import (
+    DEVICE,
+    SENSOR_COLS,
+    RENAME_MAP,
+    INPUT_COLS,
+    TARGET_COLS,
+    RNN_MODEL_CONFIG,
+    RNN_MODEL_TYPE,
+    TRAINING_CONFIG,
+    TS_COL,
+    WINDOW_STEPS,
+    SEED,
+)
+from scripts.misc.feature_engineering import ts_cols
+from Methods.Blackbox.profile_dataset import (
+    create_profiles,
+    scale_train_val_test_data,
     tensorize_profiles,
 )
-
-from src.models.model_utils import (
+from Methods.Blackbox.common_BB_scripts import (
+    save_sequence_model,
     evaluate_sequence_model,
-    eval_plot_sequence,
+    plot_sequence_model_results,
     print_metrics,
-    set_seed,
+    set_reproducibility,
 )
 
-from src.config import paths
-from pathlib import Path
-
-#from src.models.RNN.experiment_configs import WINDING_CONFIG_1 as cfg
-#from src.models.RNN.experiment_configs import CYL3_CONFIG as cfg
-from src.models.RNN.experiment_configs import CYL_ALL_CONFIG as cfg
-
-def save_rnn_model(
-    model,
-    x_scaler,
-    y_scaler,
-    input_cols,
-    target_cols,
-    model_type,
-    hidden_size,
-    num_layers,
-    dropout,
-    dt_s,
-    path,
-    history=None,
-    params=None,
-):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    save_dict = {
-        "model_state_dict": model.state_dict(),
-        "x_scaler": x_scaler,
-        "y_scaler": y_scaler,
-        "input_cols": input_cols,
-        "target_cols": target_cols,
-        "model_type": model_type,
-        "hidden_size": hidden_size,
-        "num_layers": num_layers,
-        "dropout": dropout,
-        "dt_s": dt_s,
-    }
-
-    if history is not None:
-        save_dict["history"] = history
-
-    if params is not None:
-        save_dict["params"] = params
-
-    torch.save(save_dict, path)
-    print(f"RNN model saved to {path}")
-
-
-def main():
-    set_seed(42)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model_type = "LSTM"  # or "GRU"
-    TS_COL = cfg["ts_col"]
-    WINDOW_STEPS = cfg["window_steps"]
-    TEST_PROFILE_LEN = cfg["test_profile_len"]
-    VAL_PROFILE_LEN = cfg["val_profile_len"]
-    input_cols = cfg["input_cols"]
-    target_cols = cfg["target_cols"]
-    params = cfg["default_params"]
-
-    dataset = 1
-    #csv_path = paths.DATASET_PATH / "split" / f"Dataset_{dataset}" / "numeric" / "AE_PORT.csv"
-    csv_path = paths.DATASET_PATH / "split" / "temp" / "AE_PORT_with_extra_TEMP.csv"
+def load_and_prepare_data(
+    csv_path: str,
+) -> tuple[pd.DataFrame, float]:
+    """Load one split, select the required sensors, and rename them."""
     data = pd.read_csv(csv_path)
-
     data, dt_s = ts_cols(data, TS_COL)
-    data = feature_processing(data)
 
-    data, train_profiles, val_profiles, test_profiles, profile_sizes = train_val_test_split_profiles(
-        data,
+    required_cols = [TS_COL, *SENSOR_COLS]
+    missing_cols = [
+        column
+        for column in required_cols
+        if column not in data.columns
+    ]
+
+    if missing_cols:
+        raise KeyError(
+            f"Missing required columns in {csv_path}: {missing_cols}"
+        )
+
+    data = data[required_cols].copy()
+    data = data.rename(columns=RENAME_MAP)
+
+    return data, dt_s
+
+
+def main() -> None:
+    set_reproducibility(SEED)
+
+    # -----------------------------------------------------
+    # Load the three pre-split datasets
+    # -----------------------------------------------------
+    train_path = "../ds1_generator_train.csv"
+    val_path = "../ds1_generator_val.csv"
+    test_path = "../ds1_generator_test.csv"
+
+
+    train_data, train_dt_s = load_and_prepare_data(train_path)
+    val_data, val_dt_s = load_and_prepare_data(val_path)
+    test_data, test_dt_s = load_and_prepare_data(test_path)
+
+    dt_s = train_dt_s  # sampling interval (same across splits)
+
+    # -----------------------------------------------------
+    # Profile each split independently
+    # -----------------------------------------------------
+    train_data, train_profiles = create_profiles(
+        train_data,
         ts_col=TS_COL,
         window_steps=WINDOW_STEPS,
-        val_profile_len=VAL_PROFILE_LEN,
-        test_profile_len=TEST_PROFILE_LEN,
-        dt_s=dt_s,
+        dt_s=train_dt_s,
     )
 
-    data, x_scaler, y_scaler = scale_profile_data(
-        data,
-        train_profiles=train_profiles,
-        input_cols=input_cols,
-        target_cols=target_cols,
+    val_data, val_profiles = create_profiles(
+        val_data,
+        ts_col=TS_COL,
+        window_steps=WINDOW_STEPS,
+        dt_s=val_dt_s,
     )
 
+    test_data, test_profiles = create_profiles(
+        test_data,
+        ts_col=TS_COL,
+        window_steps=WINDOW_STEPS,
+        dt_s=test_dt_s,
+    )
+
+    print(f"Training profiles:   {len(train_profiles)}")
+    print(f"Validation profiles: {len(val_profiles)}")
+    print(f"Test profiles:       {len(test_profiles)}")
+
+    # -----------------------------------------------------
+    # Fit scalers on training data and apply to all splits
+    # -----------------------------------------------------
+    (
+        train_data,
+        val_data,
+        test_data,
+        x_scaler,
+        y_scaler,
+    ) = scale_train_val_test_data(
+        train_data=train_data,
+        val_data=val_data,
+        test_data=test_data,
+        input_cols=INPUT_COLS,
+        target_cols=TARGET_COLS,
+    )
+
+    # -----------------------------------------------------
+    # Tensor creation
+    # -----------------------------------------------------
     x_train, y_train, mask_train = tensorize_profiles(
-        data, train_profiles, input_cols, target_cols, device=device
+        train_data,
+        train_profiles,
+        INPUT_COLS,
+        TARGET_COLS,
+        device=DEVICE,
     )
 
     x_val, y_val, mask_val = tensorize_profiles(
-        data, val_profiles, input_cols, target_cols, device=device
+        val_data,
+        val_profiles,
+        INPUT_COLS,
+        TARGET_COLS,
+        device=DEVICE,
     )
 
     x_test, y_test, mask_test = tensorize_profiles(
-        data, test_profiles, input_cols, target_cols, device=device
+        test_data,
+        test_profiles,
+        INPUT_COLS,
+        TARGET_COLS,
+        device=DEVICE,
     )
 
+    print(f"x_train shape: {tuple(x_train.shape)}")
+    print(f"x_val shape:   {tuple(x_val.shape)}")
+    print(f"x_test shape:  {tuple(x_test.shape)}")
+
+    # -----------------------------------------------------
+    # Model
+    # -----------------------------------------------------
     model = RNNBaseline(
-        input_size=len(input_cols),
-        output_size=len(target_cols),
-        hidden_size=params["hidden_size"],
-        num_layers=params["num_layers"],
-        dropout=params["dropout"],
-        model_type=model_type,
-    ).to(device)
+        **RNN_MODEL_CONFIG
+    ).to(DEVICE)
 
-    model, history = train_rnn_baseline(
-        model,
-        x_train,
-        y_train,
-        mask_train,
-        x_val,
-        y_val,
-        mask_val,
-        n_epochs=params["n_epochs"],
-        lr=params["lr"],
-        weight_decay=params["weight_decay"],
+    # -----------------------------------------------------
+    # Training and best-validation checkpoint selection
+    # -----------------------------------------------------
+    model, history = train_sequence_model(
+        model=model,
+        x_train=x_train,
+        y_train=y_train,
+        mask_train=mask_train,
+        x_val=x_val,
+        y_val=y_val,
+        mask_val=mask_val,
+        **TRAINING_CONFIG,
     )
 
+    # -----------------------------------------------------
+    # Final test evaluation
+    # -----------------------------------------------------
     metrics = evaluate_sequence_model(
         model=model,
         x_test=x_test,
@@ -141,42 +178,42 @@ def main():
         mask_test=mask_test,
         y_scaler=y_scaler,
     )
-
     print_metrics(metrics)
 
-    eval_plot_sequence(
+    # -----------------------------------------------------
+    # Plotting
+    # -----------------------------------------------------
+    plot_sequence_model_results(
         model=model,
         x_test=x_test,
-        test_mask=mask_test,
-        data=data,
+        mask_test=mask_test,
+        data=test_data,
         test_profiles=test_profiles,
-        target_cols=target_cols,
+        target_cols=TARGET_COLS,
         y_scaler=y_scaler,
         ts_col=TS_COL,
     )
 
-    save_rnn_model(
+    # -----------------------------------------------------
+    # Save model and preprocessing metadata
+    # -----------------------------------------------------
+    model_name = RNN_MODEL_TYPE.lower()
+
+    save_sequence_model(
         model=model,
         x_scaler=x_scaler,
         y_scaler=y_scaler,
-        input_cols=input_cols,
-        target_cols=target_cols,
-        model_type=model_type,
-        hidden_size=params["hidden_size"],
-        num_layers=params["num_layers"],
-        dropout=params["dropout"],
-        dt_s=dt_s,
-        path=paths.MODEL_DIR / f"{model_type}_cylinder_all.pt",
-        history=history,
-        params={
-            "n_epochs": params["n_epochs"],
-            "lr": params["lr"],
-            "weight_decay": params["weight_decay"],
-            "hidden_size": params["hidden_size"],
-            "num_layers": params["num_layers"],
-            "dropout": params["dropout"],
-            "model_type": model_type,
+        input_cols=INPUT_COLS,
+        target_cols=TARGET_COLS,
+        model_type=RNN_MODEL_TYPE,
+        model_config=RNN_MODEL_CONFIG,
+        training_config={
+            **TRAINING_CONFIG,
+            "seed": SEED,
         },
+        dt_s=dt_s,
+        path=f"{model_name}_winding_baseline.pt",
+        history=history,
     )
 
 if __name__ == "__main__":
