@@ -1,5 +1,6 @@
 import torch
 
+
 # ---------------------------------------------------------
 # Runtime configuration
 # ---------------------------------------------------------
@@ -7,8 +8,9 @@ DEVICE = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
 )
 SEED = 42
+
 # ---------------------------------------------------------
-# Dataset configuration
+# Dataset configuration shared by TCN and RNN
 # ---------------------------------------------------------
 TS_COL = "Created"
 WINDOW_STEPS = 300
@@ -50,11 +52,11 @@ TARGET_COLS = [
 ]
 
 # ---------------------------------------------------------
-# Model configuration
+# TCN configuration
 # ---------------------------------------------------------
-MODEL_TYPE = "TCN"
+TCN_MODEL_TYPE = "TCN"
 
-MODEL_CONFIG = {
+TCN_MODEL_CONFIG = {
     "input_size": len(INPUT_COLS),
     "output_size": len(TARGET_COLS),
     "channels": (32, 64, 64, 64, 64),
@@ -62,8 +64,24 @@ MODEL_CONFIG = {
     "dropout": 0.1,
 }
 
+
 # ---------------------------------------------------------
-# Training configuration
+# RNN configuration
+# ---------------------------------------------------------
+RNN_MODEL_TYPE = "LSTM" # "LSTM" or "GRU"
+
+RNN_MODEL_CONFIG = {
+    "input_size": len(INPUT_COLS),
+    "output_size": len(TARGET_COLS),
+    "hidden_size": 64,
+    "num_layers": 2,
+    "dropout": 0.1,
+    "model_type": RNN_MODEL_TYPE,
+}
+
+
+# ---------------------------------------------------------
+# Shared training configuration
 # ---------------------------------------------------------
 TRAINING_CONFIG = {
     "n_epochs": 200,

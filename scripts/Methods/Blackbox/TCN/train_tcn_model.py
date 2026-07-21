@@ -8,11 +8,11 @@ from Methods.Blackbox.experiment_configs import (
     RENAME_MAP,
     INPUT_COLS,
     TARGET_COLS,
-    MODEL_CONFIG,
+    TCN_MODEL_CONFIG,
     TRAINING_CONFIG,
     TS_COL,
     WINDOW_STEPS,
-    MODEL_TYPE,
+    TCN_MODEL_TYPE,
     SEED,
 )
 from scripts.misc.feature_engineering import ts_cols
@@ -103,7 +103,7 @@ def main():
     # -----------------------------------------------------
     # Model
     # -----------------------------------------------------
-    model = TCNBaseline(**MODEL_CONFIG).to(DEVICE)
+    model = TCNBaseline(**TCN_MODEL_CONFIG).to(DEVICE)
 
     # -----------------------------------------------------
     # Training
@@ -145,7 +145,7 @@ def main():
         model=model,
         x_scaler=x_scaler, y_scaler=y_scaler,
         input_cols=INPUT_COLS, target_cols=TARGET_COLS,
-        model_type=MODEL_TYPE, model_config=MODEL_CONFIG,
+        model_type=TCN_MODEL_TYPE, model_config=TCN_MODEL_CONFIG,
         training_config={**TRAINING_CONFIG, "seed": SEED},
         dt_s=dt_s,
         path="tcn_winding_baseline.pt",
