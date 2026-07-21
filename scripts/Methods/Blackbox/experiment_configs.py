@@ -11,10 +11,7 @@ SEED = 42
 # Dataset configuration
 # ---------------------------------------------------------
 TS_COL = "Created"
-
 WINDOW_STEPS = 300
-VAL_PROFILE_LEN = 3
-TEST_PROFILE_LEN = 3
 
 SENSOR_COLS = [
     "AE PORT GEN.U-WINDING TEMP.",

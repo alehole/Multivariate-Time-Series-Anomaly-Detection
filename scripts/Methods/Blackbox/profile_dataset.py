@@ -216,3 +216,43 @@ def tensorize_profiles(
 
 
 
+def scale_train_val_test_data(
+    train_data: pd.DataFrame,
+    val_data: pd.DataFrame,
+    test_data: pd.DataFrame,
+    input_cols: list[str],
+    target_cols: list[str],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, RobustScaler, RobustScaler]:
+    """
+    Fit scalers on the training split only and apply them to all three splits.
+    Each split must already contain a 'profile_id' column (from create_profiles).
+    """
+    train_data = train_data.copy()
+    val_data = val_data.copy()
+    test_data = test_data.copy()
+
+    all_cols = input_cols + target_cols
+
+    for df in (train_data, val_data, test_data):
+        df[all_cols] = df[all_cols].apply(pd.to_numeric, errors="coerce")
+        df[input_cols] = (
+            df.groupby("profile_id")[input_cols]
+            .transform(lambda g: g.ffill().bfill())
+        )
+        df[target_cols] = (
+            df.groupby("profile_id")[target_cols]
+            .transform(lambda g: g.ffill().bfill())
+        )
+
+    x_scaler = RobustScaler()
+    y_scaler = RobustScaler()
+
+    # Fit on training data only.
+    x_scaler.fit(train_data[input_cols])
+    y_scaler.fit(train_data[target_cols])
+
+    for df in (train_data, val_data, test_data):
+        df[input_cols] = x_scaler.transform(df[input_cols])
+        df[target_cols] = y_scaler.transform(df[target_cols])
+
+    return train_data, val_data, test_data, x_scaler, y_scaler

@@ -1,8 +1,5 @@
 from pathlib import Path
 
-import numpy as np
-import torch
-
 from Visualization.prediction_plots import (
     plot_profile_predictions,
     plot_time_predictions,
