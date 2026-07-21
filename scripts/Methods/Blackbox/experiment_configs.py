@@ -16,7 +16,6 @@ WINDOW_STEPS = 600
 VAL_PROFILE_LEN = 3
 TEST_PROFILE_LEN = 3
 
-
 SENSOR_COLS = [
     "AE PORT GEN.U-WINDING TEMP.",
     "AE PORT GEN.V-WINDING TEMP.",
@@ -25,9 +24,7 @@ SENSOR_COLS = [
     "AE PORT END BRG.TEMP.",
     "AE PORT LUB.OIL TEMP.",
     "AE PORT HT FW OUTLET TEMP.",
-    "AE PORT LUB.OIL PRESS.",
     "POWER_kW",
-    "POWER_kW_sq",
 ]
 
 RENAME_MAP = {
@@ -38,15 +35,11 @@ RENAME_MAP = {
     "AE PORT END BRG.TEMP.": "T5",
     "AE PORT LUB.OIL TEMP.": "T6",
     "AE PORT HT FW OUTLET TEMP.": "T7",
-    "AE PORT LUB.OIL PRESS.": "P1",
     "POWER_kW": "E1",
-    "POWER_kW_sq": "E2",
 }
 
 INPUT_COLS = [
     "E1",
-    "E2",
-    "P1",
     "T4",
     "T5",
     "T6",
@@ -58,7 +51,6 @@ TARGET_COLS = [
     "T2",
     "T3",
 ]
-
 
 # ---------------------------------------------------------
 # Model configuration
