@@ -1,4 +1,5 @@
 import pandas as pd
+from pathlib import Path
 
 from Methods.Blackbox.sequence_model_training import train_sequence_model
 from Methods.Blackbox.RNN.RNN import RNNBaseline
@@ -28,9 +29,10 @@ from Methods.Blackbox.common_BB_scripts import (
     print_metrics,
     set_reproducibility,
 )
+import config as cfg
 
 def load_and_prepare_data(
-    csv_path: str,
+    csv_path: Path,
 ) -> tuple[pd.DataFrame, float]:
     """Load one split, select the required sensors, and rename them."""
     data = pd.read_csv(csv_path)
@@ -57,12 +59,14 @@ def load_and_prepare_data(
 def main() -> None:
     set_reproducibility(SEED)
 
+    data_path = Path(cfg.DATA_PATH)
+
     # -----------------------------------------------------
     # Load the three pre-split datasets
     # -----------------------------------------------------
-    train_path = "../ds1_generator_train.csv"
-    val_path = "../ds1_generator_val.csv"
-    test_path = "../ds1_generator_test.csv"
+    train_path = data_path / "train_test_split/ds1_generator_train.csv"
+    val_path   = data_path / "train_test_split/ds1_generator_val.csv"
+    test_path  = data_path / "train_test_split/ds1_generator_test.csv"
 
 
     train_data, train_dt_s = load_and_prepare_data(train_path)
