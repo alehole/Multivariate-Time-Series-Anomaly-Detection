@@ -23,6 +23,8 @@ from Methods.Blackbox.profile_dataset import (
     scale_profile_data,
     tensorize_profiles,
     create_profiles,
+    scale_train_test_data,
+
 )
 from Methods.Blackbox.common_BB_scripts import (
     save_sequence_model,
@@ -52,8 +54,9 @@ def load_and_prepare_data(
 def main():
     set_reproducibility(SEED)
 
-    train_path = "ds1_generator_test.csv"
-    test_path = "ds1_generator_train.csv"
+
+    train_path = "ds1_generator_train.csv"
+    test_path = "ds1_generator_test.csv"
 
 
     csv_path = "AE_PORT.csv"
@@ -65,13 +68,16 @@ def main():
     # -----------------------------------------------------
     # Load separate datasets
     # -----------------------------------------------------
+
     train_data, train_dt_s = load_and_prepare_data(train_path)
     test_data, test_dt_s = load_and_prepare_data(test_path)
-    data, dt_s = load_and_prepare_data(test_path)
+
+    data, dt_s = load_and_prepare_data(csv_path)
 
     # -----------------------------------------------------
     # Train-validation-test split
     # -----------------------------------------------------
+
     train_data, train_profiles = create_profiles(
         train_data,
         ts_col=TS_COL,
@@ -98,6 +104,19 @@ def main():
     # -----------------------------------------------------
     # Scaling
     # -----------------------------------------------------
+
+    (
+        train_data,
+        test_data,
+        x_scaler,
+        y_scaler,
+    ) = scale_train_test_data(
+        train_data=train_data,
+        test_data=test_data,
+        input_cols=INPUT_COLS,
+        target_cols=TARGET_COLS,
+    )
+
     data, x_scaler, y_scaler = scale_profile_data(
         data,
         train_profiles=train_profiles,
@@ -183,6 +202,7 @@ def main():
         path="tcn_winding_baseline.pt",
         history=history,
     )
+
 
 if __name__ == "__main__":
     main()

@@ -12,7 +12,7 @@ SEED = 42
 # ---------------------------------------------------------
 TS_COL = "Created"
 
-WINDOW_STEPS = 300
+WINDOW_STEPS = 600
 VAL_PROFILE_LEN = 3
 TEST_PROFILE_LEN = 3
 

@@ -13,21 +13,20 @@ class TemporalBlock(nn.Module):
     ):
         super().__init__()
 
-        padding = (kernel_size - 1) * dilation
+        # left-padding amount for causal convolution
+        self.pad = (kernel_size - 1) * dilation
 
+        # NOTE: no padding arg here — we pad manually on the left in forward
         self.conv1 = nn.Conv1d(
             in_channels,
             out_channels,
             kernel_size,
-            padding=padding,
             dilation=dilation,
         )
-
         self.conv2 = nn.Conv1d(
             out_channels,
             out_channels,
             kernel_size,
-            padding=padding,
             dilation=dilation,
         )
 
@@ -41,25 +40,18 @@ class TemporalBlock(nn.Module):
         )
 
     def forward(self, x):
-
-        out = self.conv1(x)
-
-        # causal crop
-        out = out[:, :, :x.size(2)]
-
+        # F.pad(x, (left, right)) pads the last dim; (self.pad, 0) = left only
+        out = self.conv1(F.pad(x, (self.pad, 0)))
         out = self.relu(out)
         out = self.dropout(out)
 
-        out = self.conv2(out)
-        out = out[:, :, :x.size(2)]
-
+        out = self.conv2(F.pad(out, (self.pad, 0)))
         out = self.relu(out)
         out = self.dropout(out)
 
         residual = x if self.downsample is None else self.downsample(x)
 
         return self.relu(out + residual)
-
 
 class TCNBaseline(nn.Module):
     def __init__(
