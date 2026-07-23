@@ -165,7 +165,7 @@ def main():
             train_csv=ds1_train_generator_path_output,
             val_csv=ds1_val_generator_path_output,
             test_csv=ds1_test_generator_path_output,
-            train_ratio=0.75,
+            train_ratio=0.70,
             val_ratio=0.15,
         )
 
@@ -189,7 +189,7 @@ def main():
             train_csv=ds2_train_generator_path_output,
             val_csv=ds2_val_generator_path_output,
             test_csv=ds2_test_generator_path_output,
-            train_ratio=0.75,
+            train_ratio=0.7,
             val_ratio=0.15,
         )
 
