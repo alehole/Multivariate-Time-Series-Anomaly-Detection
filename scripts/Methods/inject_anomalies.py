@@ -14,6 +14,7 @@ def plot_original_vs_modified(
     time_col: str = "Created",
     save_path: str | Path | None = None,
     show: bool = True,
+    label_string: str = "with injected anomaly,",
 ) -> None:
     """Plot the original and modified sensor signals on the same axes."""
 
@@ -67,7 +68,7 @@ def plot_original_vs_modified(
     ax.plot(
         time_plot,
         modified_plot,
-        label="With injected anomaly",
+        label=label_string,
         linewidth=1.5,
         color="tab:orange",
         alpha=0.85,
@@ -127,7 +128,7 @@ def main():
     original_data = data.copy(deep=True)
 
     # Sensor to compare in the plot.
-    col = "AE PORT GEN.V-WINDING TEMP."
+    col = "AE PORT LUB.OIL TEMP."
 
     # --------------------------------
     # Select injected anomalies
@@ -138,6 +139,7 @@ def main():
     inj_bias_fault = True
     inj_stuck_sensor = False
 
+    labelstring = "anomaly"
     # --------------------------------
     # Inject anomalies
     # --------------------------------
@@ -172,8 +174,9 @@ def main():
             df=data,
             col=col,
             start_idx=200,
-            bias=3.0,
+            bias=1.0,
         )
+        labelstring="Bias anomaly amplitude 1"
 
     if inj_stuck_sensor:
         data = ai.inject_stuck_sensor(
@@ -193,6 +196,7 @@ def main():
         time_col="Created",
         save_path=plot_path,
         show=True,
+        label_string=labelstring
     )
 
     # --------------------------------
