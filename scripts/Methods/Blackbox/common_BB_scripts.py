@@ -245,3 +245,147 @@ def save_sequence_model(
     torch.save(checkpoint, path)
 
     print(f"{model_type} model saved to {path}")
+
+
+from torch import nn
+from typing import TypeAlias
+ModelRegistry: TypeAlias = dict[str, type[nn.Module]]
+
+def load_sequence_model(
+    path: str | Path,
+    model_registry: ModelRegistry,
+    device: str | torch.device = "cpu",
+    strict: bool = True,
+) -> tuple[nn.Module, dict]:
+    """
+    Load a saved sequence model and its associated metadata.
+
+    Parameters
+    ----------
+    path:
+        Path to the saved PyTorch checkpoint.
+
+    model_registry:
+        Mapping from saved model identifiers to their corresponding
+        PyTorch model classes. The loader first searches using
+        ``model_type`` and then ``model_class``.
+
+        Example
+        -------
+        {
+            "TCN": TCNBaseline,
+            "RNN": RNNBaseline,
+            "TCNBaseline": TCNBaseline,
+            "RNNBaseline": RNNBaseline,
+        }
+
+    device:
+        Device on which the model should be loaded.
+
+    strict:
+        Whether the checkpoint state dictionary must exactly match
+        the reconstructed model architecture.
+
+    Returns
+    -------
+    model:
+        Reconstructed model in evaluation mode.
+
+    metadata:
+        Dictionary containing the saved scalers, columns, model
+        configuration, training configuration, sampling interval,
+        training history, and other checkpoint information.
+
+    Notes
+    -----
+    The checkpoint contains serialized scaler objects. Therefore,
+    ``weights_only=False`` is required. Only load trusted checkpoint
+    files.
+    """
+    path = Path(path)
+    device = torch.device(device)
+
+    if not path.exists():
+        raise FileNotFoundError(f"Model checkpoint not found: {path}")
+
+    checkpoint = torch.load(
+        path,
+        map_location=device,
+        weights_only=False,
+    )
+
+    if not isinstance(checkpoint, dict):
+        raise TypeError(
+            "Expected the checkpoint to be a dictionary, "
+            f"but received {type(checkpoint).__name__}."
+        )
+
+    required_keys = {
+        "model_state_dict",
+        "model_type",
+        "model_class",
+        "model_config",
+        "x_scaler",
+        "y_scaler",
+        "input_cols",
+        "target_cols",
+        "dt_s",
+    }
+
+    missing_keys = required_keys.difference(checkpoint)
+
+    if missing_keys:
+        raise KeyError(
+            "Checkpoint is missing required keys: "
+            + ", ".join(sorted(missing_keys))
+        )
+
+    model_type = checkpoint["model_type"]
+    model_class_name = checkpoint["model_class"]
+
+    # Try the user-defined model type first, then the Python class name.
+    model_class = model_registry.get(model_type)
+
+    if model_class is None:
+        model_class = model_registry.get(model_class_name)
+
+    if model_class is None:
+        available = ", ".join(sorted(model_registry))
+
+        raise ValueError(
+            f"No model class registered for model_type={model_type!r} "
+            f"or model_class={model_class_name!r}. "
+            f"Available registry entries: {available}"
+        )
+
+    model_config = checkpoint["model_config"]
+
+    if not isinstance(model_config, dict):
+        raise TypeError(
+            "checkpoint['model_config'] must be a dictionary."
+        )
+
+    model = model_class(**model_config).to(device)
+
+    model.load_state_dict(
+        checkpoint["model_state_dict"],
+        strict=strict,
+    )
+
+    model.eval()
+
+    metadata = {
+        key: value
+        for key, value in checkpoint.items()
+        if key != "model_state_dict"
+    }
+
+    metadata["path"] = path
+    metadata["device"] = device
+
+    print(
+        f"{model_type} model loaded from {path} "
+        f"on device {device}"
+    )
+
+    return model, metadata
