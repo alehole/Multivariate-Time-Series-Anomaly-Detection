@@ -38,19 +38,32 @@ RENAME_MAP = {
 }
 
 INPUT_COLS = [
-    "E1",
+    "P1",
     "T4",
     "T5",
     "T6",
     "T7",
 ]
-
 TARGET_COLS = [
     "T1",
     "T2",
     "T3",
 ]
 
+# ---------------------------------------------------------
+# CONFIGURATIONS C1-C4
+# ---------------------------------------------------------
+CONFIG = "MC1"
+
+if CONFIG == "MC1":
+    INPUT_COLS = [
+        "E1",
+    ]
+    TARGET_COLS = [
+        "T1",
+        "T2",
+        "T3",
+    ]
 # ---------------------------------------------------------
 # TCN configuration
 # ---------------------------------------------------------
@@ -67,12 +80,12 @@ TCN_MODEL_CONFIG = {
 # ---------------------------------------------------------
 # RNN configuration
 # ---------------------------------------------------------
-RNN_MODEL_TYPE = "GRU" # "LSTM" or "GRU"
+RNN_MODEL_TYPE = "LSTM" # "LSTM" or "GRU"
 
 RNN_MODEL_CONFIG = {
     "input_size": len(INPUT_COLS),
     "output_size": len(TARGET_COLS),
-    "hidden_size": 64,
+    "hidden_size": 128,
     "num_layers": 2,
     "dropout": 0.1,
     "model_type": RNN_MODEL_TYPE,
