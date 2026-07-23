@@ -11,7 +11,6 @@ from Methods.Blackbox.experiment_configs import (
     RENAME_MAP,
     SENSOR_COLS,
     TS_COL,
-    WINDOW_STEPS,
 )
 from Methods.Blackbox.profile_dataset import (
     create_profiles,
@@ -202,8 +201,8 @@ def main():
     # -----------------------------------------------------
     data_path = Path(cfg.DATA_PATH)
 
-    test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_generator_test_w_anomalies.csv"
-
+    #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_generator_test_w_anomalies.csv"
+    test_path = data_path / "train_test_split" / "ds1_generator_test.csv"
 
 
 
