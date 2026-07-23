@@ -229,6 +229,14 @@ def main():
     print("Target tensor shape:", y_test.shape)
     print("Mask shape:", mask_test.shape)
 
+    print("TCN model loaded successfully")
+    print("Device:", device)
+    print("Model type:", metadata["model_type"])
+    print("Model class:", metadata["model_class"])
+    print("Input columns:", input_cols)
+    print("Target columns:", target_cols)
+    print("Sampling interval:", dt_s)
+
     # -----------------------------------------------------
     # 3. Predict winding temperatures
     # -----------------------------------------------------

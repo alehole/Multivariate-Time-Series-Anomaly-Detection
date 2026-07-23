@@ -67,7 +67,7 @@ TCN_MODEL_CONFIG = {
 # ---------------------------------------------------------
 # RNN configuration
 # ---------------------------------------------------------
-RNN_MODEL_TYPE = "LSTM" # "LSTM" or "GRU"
+RNN_MODEL_TYPE = "GRU" # "LSTM" or "GRU"
 
 RNN_MODEL_CONFIG = {
     "input_size": len(INPUT_COLS),
