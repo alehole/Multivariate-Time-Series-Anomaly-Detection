@@ -15,9 +15,9 @@ from model import f_discrete_implicit
 # ---------------------------------------------------------
 DT_SECONDS = 60.0
 SIMULATION_HOURS = 72.0
-MEASUREMENT_NOISE_STD = 0.25
+MEASUREMENT_NOISE_STD = 0.5
 USE_REAL_POWER = True
-OUTPUT_DIR = Path(cfg.DATA_PATH)
+OUTPUT_DIR = Path(cfg.DATA_PATH) / "toy_sim"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------
@@ -206,9 +206,9 @@ test_df = df.iloc[split_index:].copy()
 # ---------------------------------------------------------
 # Save CSV files
 # ---------------------------------------------------------
-full_path = OUTPUT_DIR / sde_cfg.CSV_FULL
-train_path = OUTPUT_DIR / sde_cfg.CSV_TRAIN
-test_path = OUTPUT_DIR / sde_cfg.CSV_TEST
+full_path = OUTPUT_DIR /sde_cfg.CSV_FULL
+train_path = OUTPUT_DIR /sde_cfg.CSV_TRAIN
+test_path = OUTPUT_DIR /sde_cfg.CSV_TEST
 
 df.to_csv(full_path, index=False)
 train_df.to_csv(train_path, index=False)
@@ -243,14 +243,14 @@ axes[0].plot(
     label="Generator power",
 )
 axes[0].set_ylabel("Power [kW]")
-axes[0].set_title("Synthetic generator load")
+axes[0].set_title("Measured generator power used as model input")
 axes[0].grid(True)
 axes[0].legend()
 
 axes[1].plot(
     time_h,
     temperature_measured,
-    label="Synthetic T1 with measurement noise",
+    label="Synthetic T1 with noise",
 )
 
 axes[1].plot(
@@ -262,12 +262,12 @@ axes[1].plot(
     time_h,
     tref,
     linestyle="--",
-    label="Ambient reference temperature",
+    label="Reference temperature",
 )
 
 axes[1].set_xlabel("Time [hours]")
 axes[1].set_ylabel("Temperature [°C]")
-axes[1].set_title("Synthetic temperature response of the one-state RC model")
+axes[1].set_title("Synthetic one-state RC response driven by measured power")
 axes[1].grid(True)
 axes[1].legend()
 

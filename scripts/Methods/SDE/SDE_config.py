@@ -32,8 +32,8 @@ val_path = data_path / "train_test_split/ds1_generator_val.csv"
 test_path = data_path / "train_test_split/ds1_generator_test.csv"
 
 if RUN_TOY_CHECK:
-    CSV_TRAIN = cfg.DATA_PATH / "toy_generator_train.csv"
-    CSV_TEST = cfg.DATA_PATH / "toy_generator_test.csv"
+    CSV_TRAIN = cfg.DATA_PATH /"toy_sim/toy_generator_train.csv"
+    CSV_TEST = cfg.DATA_PATH / "toy_sim/toy_generator_test.csv"
 else:
     CSV_TRAIN = (
         cfg.DATA_PATH
@@ -74,7 +74,7 @@ PARAMETER_NAMES = [
 # ---------------------------------------------------------
 THETA0 = np.array([
     1.0e5,  # C1 [kJ/°C]
-    0.05,   # R1 [°C/kW]
+    0.04,   # R1 [°C/kW]
 ])
 
 LOWER_BOUND = np.array([
@@ -95,7 +95,7 @@ Q = np.diag([
 ])
 
 R = np.diag([
-    0.25**2,
+    0.5**2,
 ])
 
 C = np.array([
