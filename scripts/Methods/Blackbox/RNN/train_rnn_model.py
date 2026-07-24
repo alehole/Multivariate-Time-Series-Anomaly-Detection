@@ -4,17 +4,10 @@ from pathlib import Path
 from Methods.Blackbox.sequence_model_training import train_sequence_model
 from Methods.Blackbox.RNN.RNN import RNNBaseline
 from Methods.Blackbox.experiment_configs import (
-    DEVICE,
-    SENSOR_COLS,
-    RENAME_MAP,
-    INPUT_COLS,
-    TARGET_COLS,
     RNN_MODEL_CONFIG,
     RNN_MODEL_TYPE,
     TRAINING_CONFIG,
-    TS_COL,
     WINDOW_STEPS,
-    SEED,
 )
 from scripts.misc.feature_engineering import ts_cols
 from Methods.Blackbox.profile_dataset import (
@@ -30,15 +23,16 @@ from Methods.Blackbox.common_BB_scripts import (
     set_reproducibility,
 )
 import config as cfg
+import Methods.Blackbox.experiment_configs as method_cfg
 
 def load_and_prepare_data(
     csv_path: Path,
 ) -> tuple[pd.DataFrame, float]:
     """Load one split, select the required sensors, and rename them."""
     data = pd.read_csv(csv_path)
-    data, dt_s = ts_cols(data, TS_COL)
+    data, dt_s = ts_cols(data, cfg.TS_COL)
 
-    required_cols = [TS_COL, *SENSOR_COLS]
+    required_cols = [cfg.TS_COL, *cfg.SENSOR_COLS]
     missing_cols = [
         column
         for column in required_cols
@@ -51,13 +45,14 @@ def load_and_prepare_data(
         )
 
     data = data[required_cols].copy()
-    data = data.rename(columns=RENAME_MAP)
+    data = data.rename(columns=cfg.RENAME_MAP)
 
     return data, dt_s
 
 
-def main() -> None:
-    set_reproducibility(SEED)
+def main():
+    set_reproducibility(cfg.SEED)
+    model_config = cfg.CONFIG
 
     data_path = Path(cfg.DATA_PATH)
 
@@ -80,21 +75,21 @@ def main() -> None:
     # -----------------------------------------------------
     train_data, train_profiles = create_profiles(
         train_data,
-        ts_col=TS_COL,
+        ts_col=cfg.TS_COL,
         window_steps=WINDOW_STEPS,
         dt_s=train_dt_s,
     )
 
     val_data, val_profiles = create_profiles(
         val_data,
-        ts_col=TS_COL,
+        ts_col=cfg.TS_COL,
         window_steps=WINDOW_STEPS,
         dt_s=val_dt_s,
     )
 
     test_data, test_profiles = create_profiles(
         test_data,
-        ts_col=TS_COL,
+        ts_col=cfg.TS_COL,
         window_steps=WINDOW_STEPS,
         dt_s=test_dt_s,
     )
@@ -116,8 +111,8 @@ def main() -> None:
         train_data=train_data,
         val_data=val_data,
         test_data=test_data,
-        input_cols=INPUT_COLS,
-        target_cols=TARGET_COLS,
+        input_cols=cfg.INPUT_COLS,
+        target_cols=cfg.TARGET_COLS,
     )
 
     # -----------------------------------------------------
@@ -126,25 +121,25 @@ def main() -> None:
     x_train, y_train, mask_train = tensorize_profiles(
         train_data,
         train_profiles,
-        INPUT_COLS,
-        TARGET_COLS,
-        device=DEVICE,
+        cfg.INPUT_COLS,
+        cfg.TARGET_COLS,
+        device=cfg.DEVICE,
     )
 
     x_val, y_val, mask_val = tensorize_profiles(
         val_data,
         val_profiles,
-        INPUT_COLS,
-        TARGET_COLS,
-        device=DEVICE,
+        cfg.INPUT_COLS,
+        cfg.TARGET_COLS,
+        device=cfg.DEVICE,
     )
 
     x_test, y_test, mask_test = tensorize_profiles(
         test_data,
         test_profiles,
-        INPUT_COLS,
-        TARGET_COLS,
-        device=DEVICE,
+        cfg.INPUT_COLS,
+        cfg.TARGET_COLS,
+        device=cfg.DEVICE,
     )
 
     print(f"x_train shape: {tuple(x_train.shape)}")
@@ -156,7 +151,7 @@ def main() -> None:
     # -----------------------------------------------------
     model = RNNBaseline(
         **RNN_MODEL_CONFIG
-    ).to(DEVICE)
+    ).to(cfg.DEVICE)
 
     # -----------------------------------------------------
     # Training and best-validation checkpoint selection
@@ -193,9 +188,9 @@ def main() -> None:
         mask_test=mask_test,
         data=test_data,
         test_profiles=test_profiles,
-        target_cols=TARGET_COLS,
+        target_cols=cfg.TARGET_COLS,
         y_scaler=y_scaler,
-        ts_col=TS_COL,
+        ts_col=cfg.TS_COL,
     )
 
     # -----------------------------------------------------
@@ -207,16 +202,16 @@ def main() -> None:
         model=model,
         x_scaler=x_scaler,
         y_scaler=y_scaler,
-        input_cols=INPUT_COLS,
-        target_cols=TARGET_COLS,
+        input_cols=cfg.INPUT_COLS,
+        target_cols=cfg.TARGET_COLS,
         model_type=RNN_MODEL_TYPE,
         model_config=RNN_MODEL_CONFIG,
         training_config={
             **TRAINING_CONFIG,
-            "seed": SEED,
+            "seed": cfg.SEED,
         },
         dt_s=dt_s,
-        path=f"{model_name}_winding_baseline.pt",
+        path=f"{model_config}_{model_name}_winding_baseline.pt",
         history=history,
     )
 

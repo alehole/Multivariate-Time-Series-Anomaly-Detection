@@ -7,17 +7,13 @@ from Visualization.prediction_plots import plot_predicted_vs_actual_inference, p
 from Visualization.residual_plots import plot_residuals_inference
 import config as cfg
 from Methods.Blackbox.RNN.RNN import RNNBaseline
-from Methods.Blackbox.experiment_configs import (
-    RENAME_MAP,
-    SENSOR_COLS,
-    TS_COL,
-)
 from Methods.Blackbox.profile_dataset import (
     create_profiles,
     tensorize_profiles,
 )
 from Methods.Blackbox.common_BB_scripts import predict_sequence_model, load_sequence_model
 from scripts.misc.feature_engineering import ts_cols
+import Methods.Blackbox.experiment_configs as method_cfg
 
 def load_trained_recurrent_model(
     model_path: str | Path,
@@ -57,7 +53,7 @@ def load_and_prepare_test_data(
     # 1. Load data and process timestamps
     # -----------------------------------------------------
     data = pd.read_csv(csv_path)
-    data, data_dt_s = ts_cols(data, TS_COL)
+    data, data_dt_s = ts_cols(data, cfg.TS_COL)
 
     if not np.isclose(data_dt_s, checkpoint_dt_s, rtol=0.05):
         print(
@@ -73,7 +69,7 @@ def load_and_prepare_test_data(
         if col in data.columns
     ]
 
-    required_raw_cols = [TS_COL, *SENSOR_COLS]
+    required_raw_cols = [cfg.TS_COL, *cfg.SENSOR_COLS]
 
     missing_raw_cols = [
         col
@@ -94,7 +90,7 @@ def load_and_prepare_test_data(
     data = data[keep_cols].copy()
 
     # Apply the same column names used during training.
-    data = data.rename(columns=RENAME_MAP)
+    data = data.rename(columns=cfg.RENAME_MAP)
 
     required_model_cols = [*input_cols, *target_cols]
 
@@ -128,13 +124,13 @@ def load_and_prepare_test_data(
     # -----------------------------------------------------
     data, test_profiles = create_profiles(
         data,
-        ts_col=TS_COL,
+        ts_col=cfg.TS_COL,
         window_steps=len(data),
         dt_s=data_dt_s,
     )
 
     # Preserve measurements in physical units for residuals.
-    actual_cols = [TS_COL, *target_cols, *label_cols]
+    actual_cols = [cfg.TS_COL, *target_cols, *label_cols]
 
     actual_df = data[
         [col for col in actual_cols if col in data.columns]
@@ -173,6 +169,7 @@ def load_and_prepare_test_data(
 
 def main():
     ANOMALY_THRESHOLD = 5.0
+    model_config = cfg.CONFIG
 
     # -----------------------------------------------------
     # 1. Load pretrained model
@@ -180,9 +177,9 @@ def main():
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )
-
+    model_type = method_cfg.RNN_MODEL_TYPE
     model, metadata = load_trained_recurrent_model(
-        model_path="gru_winding_baseline.pt",
+        model_path=f"{model_config}_{model_type}_winding_baseline.pt",
         device=device,
     )
 
@@ -357,7 +354,7 @@ def main():
     # 11. Prediction duration
     # -----------------------------------------------------
     timestamps = pd.to_datetime(
-        actual_df[TS_COL],
+        actual_df[cfg.TS_COL],
         errors="coerce",
         utc=True,
     ).dropna()
