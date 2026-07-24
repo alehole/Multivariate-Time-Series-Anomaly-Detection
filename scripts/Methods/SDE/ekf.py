@@ -1,6 +1,6 @@
 import numpy as np
 from model import f_discrete_implicit
-from config import STATE_COLS, MEAS_COLS, INPUT_COLS
+from SDE_config import STATE_COLS, MEAS_COLS, INPUT_COLS
 
 
 def jacobian_F(x, u_k, theta, dt, eps=1e-5):

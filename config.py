@@ -64,7 +64,7 @@ MODEL_CONFIGS = {
         "target_cols": ["T1", "T2", "T3"],
     },
     "MC3": {
-        "input_cols": ["E1", "T4", "T5", "T6", "T7"],
+        "input_cols": ["E1","T4" ,"T6"],
         "target_cols": ["T1", "T2", "T3"],
     },
     "MC4": {
