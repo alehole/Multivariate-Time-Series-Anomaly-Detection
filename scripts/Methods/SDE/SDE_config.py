@@ -47,7 +47,7 @@ MODEL_CONFIGS = {
         "parameter_names": ["C1", "R1"],
         "theta0": np.array([115_000.0, 0.04]),
         "lower_bound": np.array([1.0e4, 0.005]),
-        "upper_bound": np.array([1.0e7, 0.5]),
+        "upper_bound": np.array([1.0e6, 0.5]),
         "Q": np.diag([0.0001]),
         "R": np.diag([0.5**2]),
         "C": np.array([[1.0]]),
