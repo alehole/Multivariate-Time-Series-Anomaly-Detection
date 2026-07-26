@@ -50,7 +50,6 @@ def main():
     )
     if sde_cfg.RUN_TOY_CHECK:
         # For the toy, compare against known truth
-        from toy_simulation import theta_true
         print("\nRecovery check (est / true):")
         for name, est, true in zip(sde_cfg.PARAMETER_NAMES, theta_hat, theta_true):
             print(f"  {name}: {est:.5g} vs {true:.5g}  ({100 * est / true:.3f}%)")
