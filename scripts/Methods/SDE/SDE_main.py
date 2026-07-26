@@ -4,6 +4,9 @@ import config as cfg
 import SDE_config as sde_cfg
 from notify_phone import notify_phone
 from parameter_estimation import estimate_parameters_mle
+from PL1 import *
+from PL2 import *
+
 
 def main():
     data_path = Path(cfg.DATA_PATH)
@@ -20,19 +23,49 @@ def main():
 
     df_train = load_data(train_path, cfg.TS_COL, sde_cfg.SENSOR_COLS, sde_cfg.RENAME_MAP)
     df_test = load_data(test_path, cfg.TS_COL, sde_cfg.SENSOR_COLS, sde_cfg.RENAME_MAP)
+    print(f"Training observations: {len(df_train):,}")
+    print(f"Test observations:     {len(df_test):,}")
+    print(f"Selected model:        {sde_cfg.MODEL_OPTION}")
 
-    # ------------------------------------------------------------
-    # Estimate grey-box model parameters from training data
-    # ------------------------------------------------------------
+    # -----------------------------------------------------
+    # Estimate grey-box model parameters from training
+    # dataset by minimizing the EKF likelihood cost.
+    # -----------------------------------------------------
     theta_hat, result = estimate_parameters_mle(df_train)
+    # -----------------------------------------------------
+    # Report estimated physical parameters
+    # -----------------------------------------------------
     print("\nEstimated parameters:")
     for name, value in zip(sde_cfg.PARAMETER_NAMES, theta_hat):
         print(f"{name}: {value:.6g}")
 
-    print("Neg log-likelihood:", result.fun)
-    print("Iterations:", result.get("nfev", "n/a"))
-    print(result.message)
+    print("\nOptimization diagnostics:")
+    print("Success:", result.success)
+    print("Message:", result.message)
+    print("Final likelihood cost:", result.fun)
+    print("Iterations:", result.get("nit", "n/a"))
+    print("Function evaluations:", result.get("nfev", "n/a"),
+    )
+    if sde_cfg.RUN_TOY_CHECK:
+        # For the toy, compare against known truth
+        from toy_simulation import theta_true
+        print("\nRecovery check (est / true):")
+        for name, est, true in zip(sde_cfg.PARAMETER_NAMES, theta_hat, theta_true):
+            print(f"  {name}: {est:.5g} vs {true:.5g}  ({100 * est / true:.3f}%)")
 
+    # -----------------------------------------------------
+    # Profile-likelihood analysis
+    # -----------------------------------------------------
+    nll_ref = result.fun
+    print("Reference NLL:", nll_ref)
+
+    ## Profile likelihood
+    pl2_results = []
+    profiles = None
+    if sde_cfg.RUN_PL2:
+        pl2_results.append(run_pl2("C1", "R1", df_train, theta_hat, nll_ref))
+    if sde_cfg.RUN_PL1:
+        profiles = run_pl1(df_train, theta_hat, nll_ref)
 
 if __name__ == "__main__":
     main()

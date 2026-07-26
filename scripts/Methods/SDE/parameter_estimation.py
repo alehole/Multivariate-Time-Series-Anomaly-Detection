@@ -1,6 +1,6 @@
 import numpy as np
 from SDE_config import THETA0, LOWER_BOUND, UPPER_BOUND, Q, R, C,PARAMETER_NAMES
-
+from scipy.stats import chi2
 from scipy.optimize import minimize
 from ekf import run_ekf
 from SDE_config import C, Q, R, MAXITER
@@ -16,7 +16,10 @@ def minimize_nll(
     bound_hi,
     method="Powell",
     ):
+    """
+    Minimize the negative log-likelihood objective subject to lower and upper parameter bounds.
 
+    """
     result = minimize(
         objective,
         np.asarray(x0, dtype=float),
@@ -32,6 +35,13 @@ def minimize_nll(
     return result
 
 def estimate_parameters_mle(df_train):
+    """
+    Estimate the thermal-model parameters by maximum likelihood.
+
+    The optimization is performed using dimensionless scaling factors
+    m, where theta = m * theta0. This improves numerical conditioning
+    when the physical parameters have very different magnitudes.
+    """
     theta0 = np.asarray(THETA0, float)
     lo = np.asarray(LOWER_BOUND, float)
     hi = np.asarray(UPPER_BOUND, float)
@@ -50,12 +60,15 @@ def estimate_parameters_mle(df_train):
             R,
         )
     initial_nll = nll_scaled(m0)
+
+    # Find the scaled parameters that minimize the negative log-likelihood
     result = minimize_nll(
         nll_scaled,
         m0,
         lo_scaled,
         hi_scaled,
     )
+    # Convert the optimized scaled parameters back to physical units.
     theta_hat = result.x * theta0
     final_nll = nll_scaled(result.x)
     print("Optimization success:", result.success)
@@ -77,7 +90,6 @@ def estimate_parameters_mle(df_train):
 
     return theta_hat, result
 
-from scipy.stats import chi2
 
 def wilks_likelihood_ratio_test(nll_reduced, nll_larger, num_extra_theta):
     """
