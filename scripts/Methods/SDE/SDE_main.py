@@ -4,9 +4,9 @@ import config as cfg
 import SDE_config as sde_cfg
 from notify_phone import notify_phone
 from parameter_estimation import estimate_parameters_mle
-from PL1 import *
-from PL2 import *
-from plotting import *
+from PL1 import run_pl1
+from PL2 import run_pl2
+from plotting import plot_simulated_vs_actual
 from model import simulate_model
 
 
