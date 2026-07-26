@@ -1,7 +1,35 @@
 import numpy as np
 from SDE_config import THETA0, LOWER_BOUND, UPPER_BOUND, Q, R, C,PARAMETER_NAMES
-from likelihood import neg_log_likelihood, minimize_nll
 
+from scipy.optimize import minimize
+from ekf import run_ekf
+from SDE_config import C, Q, R, MAXITER
+
+def neg_log_likelihood(theta, df, C=C, Q=Q, R=R):
+    *_, nll = run_ekf(df, theta, C, Q, R)
+    return nll
+
+def minimize_nll(
+    objective,
+    x0,
+    bound_lo,
+    bound_hi,
+    method="Powell",
+    ):
+
+    result = minimize(
+        objective,
+        np.asarray(x0, dtype=float),
+        method=method,
+        bounds=[(float(l), float(h)) for l, h in zip(bound_lo, bound_hi)],
+        options={
+            "maxiter": MAXITER ,
+            "disp": True,
+            "xtol": 1e-4,
+            "ftol": 1e-4,
+        },
+    )
+    return result
 
 def estimate_parameters_mle(df_train):
     theta0 = np.asarray(THETA0, float)
