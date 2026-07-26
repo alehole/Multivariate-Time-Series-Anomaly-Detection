@@ -9,7 +9,10 @@ MODEL_OPTION = "1state"
 # ---------------------------------------------------------
 # Toy-data configuration
 # ---------------------------------------------------------
-
+TOY_THETA_TRUE = np.array([
+    120_000.0,  # C1 [kJ/°C]
+    0.05,       # R1 [°C/kW]
+])
 
 CSV_FULL = "toy_generator_1state.csv"
 CSV_TRAIN = "toy_generator_1state_train.csv"

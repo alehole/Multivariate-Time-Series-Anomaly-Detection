@@ -16,16 +16,6 @@ DT_SECONDS = 60.0
 SIMULATION_HOURS = 72.0
 MEASUREMENT_NOISE_STD = 0.5
 
-# ---------------------------------------------------------
-# True model parameters
-# theta = [C1, R1]
-# ---------------------------------------------------------
-theta_true = np.array([
-    120_000.0,  # C1 [kJ/°C]
-    0.05,  # R1 [°C/kW]
-])
-
-
 def main():
     USE_REAL_POWER = True
     OUTPUT_DIR = Path(cfg.DATA_PATH) / "toy_sim"
@@ -162,7 +152,7 @@ def main():
     x_true = simulate_generator(
         power_values=power,
         reference_temperature=tref,
-        theta=theta_true,
+        theta=sde_cfg.TOY_THETA_TRUE,
         time_steps=dt_steps,
     )
     # ---------------------------------------------------------
@@ -221,8 +211,8 @@ def main():
     print(f"Test observations: {len(test_df):,}")
 
     print("\nTrue parameters:")
-    print(f"C1 = {theta_true[0]:.1f} kJ/°C")
-    print(f"R1 = {theta_true[1]:.4f} °C/kW")
+    print(f"C1 = {sde_cfg.TOY_THETA_TRUE[0]:.1f} kJ/°C")
+    print(f"R1 = {sde_cfg.TOY_THETA_TRUE[1]:.4f} °C/kW")
 
     # ---------------------------------------------------------
     # Plot
