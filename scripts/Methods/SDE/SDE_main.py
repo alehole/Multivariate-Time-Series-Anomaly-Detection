@@ -6,6 +6,8 @@ from notify_phone import notify_phone
 from parameter_estimation import estimate_parameters_mle
 from PL1 import *
 from PL2 import *
+from plotting import *
+from model import simulate_model
 
 
 def main():
@@ -66,6 +68,22 @@ def main():
         pl2_results.append(run_pl2("C1", "R1", df_train, theta_hat, nll_ref))
     if sde_cfg.RUN_PL1:
         profiles = run_pl1(df_train, theta_hat, nll_ref)
+
+
+
+    # ------------------------------------------------------------
+    # Open-loop simulation (no measurement correction)
+    # ------------------------------------------------------------
+    x_sim_train = simulate_model(df_train, theta_hat)
+    x_sim_test = simulate_model(df_test, theta_hat)
+
+    plot_simulated_vs_actual(df_train, x_sim_train, "Training")
+    plot_simulated_vs_actual(df_test, x_sim_test, "Testing")
+
+
+
+
+
 
 if __name__ == "__main__":
     main()

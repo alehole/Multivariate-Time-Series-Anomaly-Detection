@@ -9,24 +9,30 @@ import SDE_config as sde_cfg
 
 from model import f_discrete_implicit
 
+# ---------------------------------------------------------
+# Simulation configuration
+# ---------------------------------------------------------
+DT_SECONDS = 60.0
+SIMULATION_HOURS = 72.0
+MEASUREMENT_NOISE_STD = 0.5
 
+# ---------------------------------------------------------
+# True model parameters
+# theta = [C1, R1]
+# ---------------------------------------------------------
+theta_true = np.array([
+    120_000.0,  # C1 [kJ/°C]
+    0.05,  # R1 [°C/kW]
+])
 
 
 def main():
-    # ---------------------------------------------------------
-    # Simulation configuration
-    # ---------------------------------------------------------
-    DT_SECONDS = 60.0
-    SIMULATION_HOURS = 72.0
-    MEASUREMENT_NOISE_STD = 0.5
     USE_REAL_POWER = True
     OUTPUT_DIR = Path(cfg.DATA_PATH) / "toy_sim"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
     # ---------------------------------------------------------
     # Synthetic generator power
     # ---------------------------------------------------------
-
     if USE_REAL_POWER:
         real_df = pd.read_csv(sde_cfg.train_path)
         real_df["Created"] = pd.to_datetime(real_df["Created"], format="ISO8601", utc=True)
@@ -70,14 +76,7 @@ def main():
     tref = (20.0 + 2.0 * np.sin(2.0 * np.pi * time_h / 24.0))
 
     dt_steps = np.diff(time_s)
-    # ---------------------------------------------------------
-    # True model parameters
-    # theta = [C1, R1]
-    # ---------------------------------------------------------
-    theta_true = np.array([
-        120_000.0,  # C1 [kJ/°C]
-        0.05,  # R1 [°C/kW]
-    ])
+
 
     # ---------------------------------------------------------
     # Simulate one-state model
