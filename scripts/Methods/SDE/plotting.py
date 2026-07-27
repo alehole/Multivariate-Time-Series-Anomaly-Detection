@@ -1,6 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
+)
+
 from SDE_config import STATE_COLS, MEAS_COLS, NIS_THRESHOLD_PERCENTILE
 import pandas as pd
 
@@ -10,19 +15,102 @@ def get_plot_cols():
     return plot_cols, plot_indices
 
 
-def print_metrics(df, x_hat, title=""):
+def print_metrics(
+    df,
+    estimates,
+    title: str = "",
+    skip_initial: int = 0,
+) -> None:
+    """
+    Calculate prediction metrics for all measured model states.
+    """
+
+    estimates = np.asarray(estimates, dtype=float)
+
+    if len(df) != len(estimates):
+        raise ValueError(
+            "Measurement and estimate lengths do not match: "
+            f"measurements={len(df)}, estimates={len(estimates)}."
+        )
+
+    if skip_initial < 0 or skip_initial >= len(df):
+        raise ValueError(
+            f"skip_initial must be between 0 and {len(df) - 1}."
+        )
+
+    plot_cols, state_indices = get_plot_cols()
+
     print(f"\n{title} metrics")
 
-    plot_cols, plot_indices = get_plot_cols()
+    for column, state_idx in zip(
+        plot_cols,
+        state_indices,
+    ):
+        if column not in df.columns:
+            raise KeyError(
+                f"Measurement column '{column}' was not found."
+            )
 
-    for name, idx in zip(plot_cols, plot_indices):
-        y_true = df[name].values
-        y_pred = x_hat[:, idx]
+        if state_idx >= estimates.shape[1]:
+            raise IndexError(
+                f"State index {state_idx} is outside estimate "
+                f"shape {estimates.shape}."
+            )
 
-        mae = mean_absolute_error(y_true, y_pred)
-        r2 = r2_score(y_true, y_pred)
+        y_true = (
+            df[column]
+            .to_numpy(dtype=float)[skip_initial:]
+        )
 
-        print(f"{name}: MAE={mae:.3f} °C, R²={r2:.4f}")
+        y_pred = estimates[
+            skip_initial:,
+            state_idx,
+        ]
+
+        # Ignore rows containing missing or non-finite values.
+        valid = (
+            np.isfinite(y_true)
+            & np.isfinite(y_pred)
+        )
+
+        y_true_valid = y_true[valid]
+        y_pred_valid = y_pred[valid]
+
+        if len(y_true_valid) == 0:
+            print(f"{column}: no valid observations")
+            continue
+
+        residual = y_true_valid - y_pred_valid
+
+        mae = mean_absolute_error(
+            y_true_valid,
+            y_pred_valid,
+        )
+
+        mse = mean_squared_error(
+            y_true_valid,
+            y_pred_valid,
+        )
+
+        rmse = np.sqrt(mse)
+        max_abs = np.max(np.abs(residual))
+
+        if len(y_true_valid) >= 2:
+            r2 = r2_score(
+                y_true_valid,
+                y_pred_valid,
+            )
+        else:
+            r2 = np.nan
+
+        print(
+            f"{column}: "
+            f"MAE={mae:.3f} °C, "
+            f"RMSE={rmse:.3f} °C, "
+            f"MaxAbs={max_abs:.3f} °C, "
+            f"R²={r2:.4f}, "
+            f"N={len(y_true_valid):,}"
+        )
 
 
 def plot_results(df, x_hat, P_cov, title=""):
