@@ -22,7 +22,7 @@ CSV_TEST = "toy_generator_1state_test.csv"
 # SDE run configuration
 # ---------------------------------------------------------
 RUN_TOY_CHECK = True
-RUN_PL1 = False
+RUN_PL1 = True
 RUN_PL2 = False
 RUN_MCMC = False
 RUN_WILKS = False

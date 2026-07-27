@@ -511,7 +511,6 @@ def main():
         target_cols=target_cols,
     )
 
-
     if sde_cfg.RUN_WILKS:
         theta_hat_reduced = theta_hat # Placeholders
         theta_hat_full = theta_hat # placeholders

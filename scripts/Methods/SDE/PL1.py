@@ -25,8 +25,6 @@ def run_pl1(df_train, theta_hat, nll_ref):
     plot_profile_likelihood(profiles, ndf=1, y_limit=7.5)
     return profiles
 
-
-
 #EQ 19 in Paper:
 def profile_likelihood_1d(df, theta_hat, nll_ref,
                           n_points=25, inner_maxiter=300):
