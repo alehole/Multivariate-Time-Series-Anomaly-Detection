@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 #https://medium.com/@sahin.samia/mastering-the-basics-of-torch-nn-a-comprehensive-guide-to-pytorchs-neural-network-module-9f2d704e8c7f
+#https://github.com/locuslab/TCN/tree/master/TCN
 class TemporalBlock(nn.Module):
     def __init__(
         self,
