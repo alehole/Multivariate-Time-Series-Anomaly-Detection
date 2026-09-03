@@ -204,7 +204,7 @@ def plot_sensor_csv(
             f"No numeric sensor columns were found in {csv_path}."
         )
 
-    print(f"Plotting {len(sensors)} sensors from: {csv_path}")
+    print(f"Sensors from: {csv_path}")
 
     base_name = csv_path.stem
 
@@ -313,7 +313,7 @@ def plot_sensor_csv(
         axes[row, column].axis("off")
 
     fig.suptitle(
-        f"{base_name} — {n_sensors} sensors",
+        f"{base_name}",
         fontsize=12,
     )
 
@@ -371,6 +371,12 @@ def main():
             "POWER_kW_sq",
             "AE PS RUNNING",
             "AE PS POWER COUNTER",
+            "AE PORT CYL.1 EXH.GAS TEMP. DEV",
+            "AE PORT CYL.2 EXH.GAS TEMP. DEV",
+            "AE PORT CYL.3 EXH.GAS TEMP. DEV",
+            "AE PORT CYL.4 EXH.GAS TEMP. DEV",
+            "AE PORT CYL.5 EXH.GAS TEMP. DEV",
+            "AE PORT CYL.6 EXH.GAS TEMP. DEV",
         ],
 
         # Number of columns in the combined grid.
@@ -408,13 +414,19 @@ def main():
 
         # False gives one combined grid.
         # True gives one PNG per sensor.
-        separate=True,
+        separate=False,
 
         # Numeric columns that should not be plotted.
         drop_cols=[
             "POWER_kW_sq",
             "AE SB RUNNING",
             "AE SB POWER COUNTER",
+            "AE STBD CYL.1 EXH.GAS TEMP. DEV",
+            "AE STBD CYL.2 EXH.GAS TEMP. DEV",
+            "AE STBD CYL.3 EXH.GAS TEMP. DEV",
+            "AE STBD CYL.4 EXH.GAS TEMP. DEV",
+            "AE STBD CYL.5 EXH.GAS TEMP. DEV",
+            "AE STBD CYL.6 EXH.GAS TEMP. DEV",
         ],
 
         # Number of columns in the combined grid.
