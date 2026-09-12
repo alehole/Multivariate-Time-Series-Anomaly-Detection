@@ -318,22 +318,17 @@ def flatten_aligned_results(
 
 
 def main():
-    device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    )
-    ANOMALY_THRESHOLD = 5.0
+    ANOMALY_THRESHOLD = 10.0
     USE_ANOMALY_FILE = False
 
     model_config = cfg.CONFIG
     data_path = Path(cfg.DATA_PATH)
 
-
     # -----------------------------------------------------
     # 1. Load pretrained model
     # -----------------------------------------------------
     model_path = f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
-
-    model, metadata = load_tnn(model_path, device)
+    model, metadata = load_tnn(model_path, cfg.DEVICE)
 
     input_cols = metadata["input_cols"]
     target_cols = metadata["target_cols"]
@@ -372,7 +367,7 @@ def main():
         y_scaler=y_scaler,
         checkpoint_dt_s=dt_s,
         window_steps=window_steps,
-        device=device,
+        device=cfg.DEVICE,
     )
 
     # -----------------------------------------------------
@@ -505,6 +500,6 @@ def main():
         "Detected anomalous observations:",
         int(result_df["any_anomaly"].sum()),
     )
-    
+
 if __name__ == "__main__":
     main()

@@ -29,7 +29,7 @@ TS_COL = "Created"
 # ---------------------------------------------------------
 # Data model configuration shared by all methods
 # ---------------------------------------------------------
-DS = "ds1"
+DS = "ds2"
 
 if DS=="ds1":
     RENAME_MAP = {
