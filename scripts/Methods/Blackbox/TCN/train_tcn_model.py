@@ -1,3 +1,4 @@
+import faulthandler
 import pandas as pd
 from pathlib import Path
 
@@ -132,6 +133,7 @@ def main():
         target_cols=cfg.TARGET_COLS,
         y_scaler=y_scaler,
         ts_col=cfg.TS_COL,
+        show_threshold=False,
     )
 
     # -----------------------------------------------------

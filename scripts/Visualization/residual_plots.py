@@ -12,6 +12,7 @@ def _plot_residual_series(
     anomaly_masks: list[np.ndarray] | None = None,
     label: str = "Residual",
     anomaly_threshold: float = 3.0,
+    show_threshold: bool = True,
     show_legend: bool = False,
 ):
     created_fig = False
@@ -28,11 +29,18 @@ def _plot_residual_series(
 
         ax.plot(time_values, y, label=label)
         ax.axhline(0.0, linestyle="--", color="black")
-        ax.axhline(anomaly_threshold, linestyle=":", color="red")
-        ax.axhline(-anomaly_threshold, linestyle=":", color="red")
-
         ax.set_ylabel("Residual ΔT (°C)")
-        ax.set_title(f"Prediction residual – {col} | threshold = ±{anomaly_threshold:.1f} °C")
+        if show_threshold:
+            ax.set_title(
+                f"Prediction residual – {col} | "
+                f"threshold = ±{anomaly_threshold:.1f} °C"
+            )
+            ax.axhline(anomaly_threshold, linestyle=":", color="red")
+            ax.axhline(-anomaly_threshold, linestyle=":", color="red")
+        else:
+            ax.set_title(
+                f"Prediction residual – {col}"
+            )
         ax.grid(True)
         if anomaly_masks is not None:
             mask = anomaly_masks[i]
@@ -60,6 +68,7 @@ def plot_residuals_inference(
     target_cols: list[str],
     ts_col: str = "Created",
     anomaly_threshold: float = 3.0,
+    show_threshold: bool = True,
 ):
     t = data[ts_col].to_numpy()
 
@@ -75,6 +84,7 @@ def plot_residuals_inference(
         anomaly_masks=anomaly_masks,
         label="Residual",
         anomaly_threshold=anomaly_threshold,
+        show_threshold=show_threshold,
         show_legend=False,
     )
 

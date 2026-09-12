@@ -166,7 +166,7 @@ def load_trained_tcn(
     )
 
 def main():
-    ANOMALY_THRESHOLD = 5.0
+    ANOMALY_THRESHOLD = 6.0
     model_config = cfg.CONFIG
     # -----------------------------------------------------
     # 1. Load pretrained model
@@ -198,8 +198,6 @@ def main():
 
     #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_generator_test_w_anomalies.csv"
     test_path = data_path / "train_test_split" / "ds1_generator_test.csv"
-
-
 
     (
         test_data,
@@ -328,6 +326,7 @@ def main():
         residual=residuals_c,
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLD,
+        show_threshold=False,
     )
 
     # -----------------------------------------------------

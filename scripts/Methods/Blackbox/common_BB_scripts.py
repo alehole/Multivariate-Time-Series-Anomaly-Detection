@@ -151,6 +151,7 @@ def plot_sequence_model_results(
     test_profiles,
     target_cols,
     y_scaler,
+    show_threshold,
     ts_col: str = "Created",
 ) -> None:
     """
@@ -198,6 +199,7 @@ def plot_sequence_model_results(
         test_profiles=test_profiles,
         target_cols=target_cols,
         y_scaler=y_scaler,
+        show_threshold=show_threshold,
         ts_col=ts_col,
     )
 
