@@ -1,25 +1,39 @@
 from __future__ import annotations
-from pathlib import Path
-import torch
-from torch import Tensor
-from src.models.TNN.tnn_model import build_model
-from src.models.TNN.train_tnn_model import predict_test_set
-from src.visualization.prediction_plots import plot_predicted_vs_actual_inference, plot_actual_vs_predicted
-from src.visualization.residual_plots import plot_residuals_inference
-from src.models.fault_injection import *
-from src.preprocess.feature_engineering import ts_cols, feature_processing
-from src.config import paths
 
-from src.models.model_utils import (
-    get_prediction_window,
-)
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-def load_model(
-        path: str,
-        device: str = "cpu"
+import torch
+
+import config as cfg
+from Methods.Blackbox.profile_dataset import (
+    create_profiles,
+    tensorize_profiles,
+)
+from Methods.TNN.tnn_model import build_model
+from Visualization.prediction_plots import (
+    plot_actual_vs_predicted,
+    plot_predicted_vs_actual_inference,
+)
+from Visualization.residual_plots import plot_residuals_inference
+from scripts.misc.feature_engineering import ts_cols
+
+
+ANOMALY_THRESHOLD = 5.0
+USE_ANOMALY_FILE = False
+
+
+def load_tnn(
+    path: str | Path,
+    device: torch.device,
 ):
-    device = torch.device(device)
+    path = Path(path)
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Model checkpoint not found: {path}"
+        )
 
     checkpoint = torch.load(
         path,
@@ -27,280 +41,459 @@ def load_model(
         weights_only=False,
     )
 
-    # Use saved hyperparameters if available
-    if "best_params" in checkpoint:
-        best_params = checkpoint["best_params"]
-        print("Loaded hyperparameters:", best_params)
+    required_keys = {
+        "model_state_dict",
+        "input_cols",
+        "target_cols",
+        "temperature_cols",
+        "cooling_columns",
+        "dt_s",
+        "window_steps",
+        "n_neurons",
+        "x_scaler",
+        "y_scaler",
+    }
 
-        n_neurons = best_params["n_neurons"]
-    else:
-        print("No best_params found, using fallback n_neurons")
-        n_neurons = checkpoint["n_neurons"]
+    missing = required_keys.difference(checkpoint)
+    if missing:
+        raise KeyError(
+            "TNN checkpoint is missing keys: "
+            + ", ".join(sorted(missing))
+        )
 
     model = build_model(
         dt_s=checkpoint["dt_s"],
         input_cols=checkpoint["input_cols"],
         target_cols=checkpoint["target_cols"],
         temperature_cols=checkpoint["temperature_cols"],
-        device=device,
-        n_neurons=n_neurons,
         cooling_columns=checkpoint["cooling_columns"],
+        n_neurons=checkpoint["n_neurons"],
+        device=device,
     )
 
-    model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+    model.load_state_dict(
+        checkpoint["model_state_dict"],
+        strict=True,
+    )
     model.eval()
 
-    return (
-        model,
-        checkpoint["x_scaler"],
-        checkpoint["y_scaler"],
-        checkpoint["input_cols"],
-        checkpoint["target_cols"],
-        checkpoint["temperature_cols"],
-        checkpoint["dt_s"],
-        checkpoint.get("best_params", None),
-    )
+    return model, checkpoint
 
 
-def tensorize_inference(
-    data: pd.DataFrame,
+def load_and_prepare_test_data(
+    csv_path: str | Path,
     input_cols: list[str],
     target_cols: list[str],
+    x_scaler,
+    y_scaler,
+    checkpoint_dt_s: float,
+    window_steps: int,
     device: torch.device,
-) -> tuple[Tensor, Tensor]:
-    """
-    Convert a single dataframe into one padded inference tensor.
+):
+    csv_path = Path(csv_path)
 
-    Returns
-    -------
-    test_tensor : Tensor
-        Shape (1, T, F)
-    test_mask : Tensor
-        Shape (1, T)
+    if not csv_path.exists():
+        raise FileNotFoundError(
+            f"Test dataset not found: {csv_path}"
+        )
 
-    1=B meaning batch size = 1
-    """
+    data = pd.read_csv(csv_path)
+    data, data_dt_s = ts_cols(data, cfg.TS_COL)
 
-    cols = input_cols + target_cols
-    df = data.loc[:, cols].copy()
+    if not np.isclose(
+        data_dt_s,
+        checkpoint_dt_s,
+        rtol=0.05,
+    ):
+        print(
+            "Warning: sampling interval differs from training: "
+            f"test={data_dt_s:.2f} s, "
+            f"training={checkpoint_dt_s:.2f} s"
+        )
 
-    arr = (
-        df.apply(pd.to_numeric, errors="coerce")
-        .to_numpy(dtype=np.float32)
+    label_cols = [
+        col
+        for col in ["fault_label", "fault_type", "fault_id"]
+        if col in data.columns
+    ]
+
+    required_generic = set(
+        [*input_cols, *target_cols]
     )
 
-    # one sequence only -> batch size = 1
-    tensor = arr[None, :, :]   # (1, T, F)
+    raw_model_cols = [
+        raw_col
+        for raw_col, generic_col in cfg.RENAME_MAP.items()
+        if generic_col in required_generic
+    ]
 
-    # valid timestep = row is not all NaN
-    mask = ~np.all(np.isnan(tensor), axis=2)   # (1, T)
+    required_raw_cols = [cfg.TS_COL, *raw_model_cols]
 
-    tensor = np.nan_to_num(tensor, nan=0.0).astype(np.float32)
+    missing_raw_cols = [
+        col
+        for col in required_raw_cols
+        if col not in data.columns
+    ]
 
-    return (
-        torch.from_numpy(tensor).to(device),
-        torch.from_numpy(mask).to(device),
+    if missing_raw_cols:
+        raise KeyError(
+            "The test dataset is missing required columns: "
+            f"{missing_raw_cols}"
+        )
+
+    keep_cols = list(
+        dict.fromkeys(
+            [*required_raw_cols, *label_cols]
+        )
     )
 
-def main():
-    ANOMALY_THRESHOLD = 5
-    PREDICTION_HOURS_START = 0  # start prediction X hours into dataset
-    PREDICTION_HOURS = 120  # predict for next X hours
-    # --------------------------------
-    # 1 Load trained model
-    # --------------------------------
-    path = paths.file_TNN_MODEL_cyl_all
+    data = data[keep_cols].copy()
+    data = data.rename(columns=cfg.RENAME_MAP)
 
-    if not path.exists():
-        raise FileNotFoundError(f"Model file not found: {path}")
-    model, x_scaler, y_scaler, input_cols, target_cols, temperature_cols, dt_s, best_params = load_model(str(path))
+    data[input_cols] = data[input_cols].apply(
+        pd.to_numeric,
+        errors="coerce",
+    )
+    data[target_cols] = data[target_cols].apply(
+        pd.to_numeric,
+        errors="coerce",
+    )
 
-    print()
-    print("Model loaded successfully")
-    print()
-
-    print("Input columns:")
-    print(input_cols)
-
-    print()
-    print("Target columns:")
-    print(target_cols)
-
-    print()
-    print("Temperature nodes:", len(temperature_cols))
-    print("Sample time:", dt_s)
-
-    # --------------------------------
-    # 2 Load new generator data( Actually the test set )
-    # --------------------------------
-    data = pd.read_csv("test_set.csv")
-
-    # --------------------------------
-    # Inject Drift Fault on e.g a winding temperature
-    # --------------------------------
-    inj_drift_fault = False
-    inj_sensor_dropout = False
-    inj_noise_fault = False
-    inj_bias_fault = False
-    inj_stuck_sensor = False
-
-    if inj_drift_fault:
-        data = inject_drift_fault(
-            df=data,
-            col="AE PORT GEN.V-WINDING TEMP.",
-            start_idx=200,
-            end_idx=1000,
-            final_drift=3.0,
-        )
-
-    if inj_sensor_dropout:
-        data = inject_sensor_dropout(
-            df=data,
-            col="AE PORT GEN.U-WINDING TEMP.",
-            start_idx=100,
-            end_idx=600)
-
-
-    if inj_noise_fault:
-        data = inject_noise_fault(
-            df=data,
-            col="AE PORT GEN.U-WINDING TEMP.",
-            start_idx=100,
-            end_idx=600,
-            noise_std=1.0,
-        )
-
-    if inj_bias_fault:
-        data = inject_bias_fault(
-            data,
-            "AE PORT GEN.W-WINDING TEMP.",
-            start_idx=200,
-            bias=3.0,
-        )
-    if inj_stuck_sensor:
-        data = inject_stuck_sensor(
+    data, test_profiles = create_profiles(
         data,
-            "AE PORT GEN.U-WINDING TEMP.",
-            start_idx=800,
-        )
-
-    # --------------------------------
-    # 3 Same preprocessing as training
-    # --------------------------------
-    data, data_dt_s = ts_cols(data, "Created")
-    data = feature_processing(data)
-    # --------------------------------
-    # 4 Ensure numeric columns
-    # --------------------------------
-    data[input_cols] = data[input_cols].apply(pd.to_numeric, errors="coerce")
-    data[target_cols] = data[target_cols].apply(pd.to_numeric, errors="coerce")
-
-    # Fill inputs so model remains stable
-    data[input_cols] = data[input_cols].ffill().bfill()
-    # Do NOT fill targets
-    data[target_cols] = data[target_cols].apply(pd.to_numeric, errors="coerce")
-
-    # --------------------------------
-    # Limit prediction window
-    # --------------------------------
-    data["Created"] = pd.to_datetime(data["Created"], errors="coerce", utc=True)
-    data = data.dropna(subset=["Created"]).sort_values("Created").reset_index(drop=True)
-
-    data = get_prediction_window(
-        data=data,
-        start_h=PREDICTION_HOURS_START,
-        horizon_h=PREDICTION_HOURS,
+        ts_col=cfg.TS_COL,
+        window_steps=window_steps,
+        dt_s=data_dt_s,
     )
-    # Keep true temperatures for only this window
-    actual_df = data[["Created"] + target_cols].copy()
 
-    # --------------------------------
-    # 5 Apply saved scalers
-    # --------------------------------
-    data[input_cols] = x_scaler.transform(data[input_cols])
-    data[target_cols] = y_scaler.transform(data[target_cols])
+    # Preserve the true measurements, including target dropouts, before
+    # temporary inference preprocessing.
+    actual_cols = [
+        cfg.TS_COL,
+        "profile_id",
+        *target_cols,
+        *label_cols,
+    ]
+    actual_df = data[actual_cols].copy()
 
-
-    # --------------------------------
-    # 6 Convert to tensor
-    # --------------------------------
-    test_tensor, test_mask = tensorize_inference(
-        data=data,
-        input_cols=input_cols,
-        target_cols=target_cols,
-        device=torch.device("cpu"),
+    # Match the training preprocessing for model inputs.
+    data[input_cols] = (
+        data.groupby("profile_id")[input_cols]
+        .transform(lambda g: g.ffill().bfill())
     )
-    # --------------------------------
-    # 7 Predict temperatures
-    # --------------------------------
-    pred_c = predict_test_set(
-        model,
-        test_tensor,
+
+    # The TNN uses the first target value of every profile as its initial
+    # thermal state. Fill only the temporary model copy; actual_df above
+    # remains unchanged so target dropout is still detected directly.
+    data[target_cols] = (
+        data.groupby("profile_id")[target_cols]
+        .transform(lambda g: g.ffill().bfill())
+    )
+
+    data[input_cols] = x_scaler.transform(
+        data[input_cols]
+    )
+    data[target_cols] = y_scaler.transform(
+        data[target_cols]
+    )
+
+    x_test, y_test, mask_test = tensorize_profiles(
+        data,
+        test_profiles,
         input_cols,
         target_cols,
-        y_scaler
+        device=device,
     )
-    # --------------------------------
-    # 8 Residuals
-    # --------------------------------
-    actual_c = actual_df[target_cols].to_numpy()
-    predicted_c = pred_c[0, :len(actual_c), :]
-    residual = actual_c - predicted_c
 
-    # --------------------------------
-    # 9 Build result dataframe
-    # --------------------------------
-    result_df = actual_df.copy()
-    for j, col in enumerate(target_cols):
-        result_df[f"{col}_predicted"] = predicted_c[:, j]
-        result_df[f"{col}_residual"] = residual[:, j]
-        result_df[f"{col}_anomaly"] = np.abs(residual[:, j]) > ANOMALY_THRESHOLD
+    test_tensor = torch.cat(
+        [x_test, y_test],
+        dim=2,
+    )
 
-    # --------------------------------
-    # 10 Save results
-    # --------------------------------
-    result_df.to_csv(paths.file_TNN_ANOMALY_RESULTS_xxxxx, index=False)
-    # --------------------------------
-    # 11 Residual Plot
-    # --------------------------------
+    return (
+        data,
+        actual_df,
+        test_profiles,
+        test_tensor,
+        mask_test,
+    )
+
+
+def predict_tnn(
+    model,
+    test_tensor: torch.Tensor,
+    test_mask: torch.Tensor,
+    input_cols: list[str],
+    target_cols: list[str],
+    y_scaler,
+):
+    n_in = len(input_cols)
+    n_out = len(target_cols)
+
+    x = test_tensor[:, :-1, :n_in]
+    state0 = test_tensor[:, 0, -n_out:]
+
+    pair_mask = (
+        test_mask[:, :-1]
+        & test_mask[:, 1:]
+    )
+
+    model.eval()
+    with torch.no_grad():
+        pred_scaled, _ = model(x, state0)
+
+    pred_scaled = pred_scaled.detach().cpu().numpy()
+    batch_size, seq_len, n_features = pred_scaled.shape
+
+    predicted_c = y_scaler.inverse_transform(
+        pred_scaled.reshape(-1, n_features)
+    ).reshape(batch_size, seq_len, n_features)
+
+    return predicted_c, pair_mask
+
+
+def flatten_aligned_results(
+    actual_df: pd.DataFrame,
+    test_profiles: list[int],
+    predicted_c: np.ndarray,
+    pair_mask: torch.Tensor,
+    target_cols: list[str],
+) -> tuple[pd.DataFrame, np.ndarray]:
+    """Align prediction T(k+1) with the measured row at k+1."""
+
+    mask_np = pair_mask.detach().cpu().numpy().astype(bool)
+
+    blocks = []
+    pred_blocks = []
+
+    grouped = actual_df.groupby(
+        "profile_id",
+        sort=False,
+    )
+
+    for batch_idx, profile_id in enumerate(test_profiles):
+        profile_df = (
+            grouped.get_group(profile_id)
+            .sort_values(cfg.TS_COL)
+            .reset_index(drop=True)
+        )
+
+        n_pairs = min(
+            len(profile_df) - 1,
+            predicted_c.shape[1],
+        )
+
+        if n_pairs <= 0:
+            continue
+
+        valid = mask_np[batch_idx, :n_pairs]
+
+        # Predictions generated from row k are aligned with measured row k+1.
+        block = (
+            profile_df.iloc[1 : n_pairs + 1]
+            .reset_index(drop=True)
+            .loc[valid]
+            .copy()
+        )
+
+        pred_block = predicted_c[
+            batch_idx,
+            :n_pairs,
+            :,
+        ][valid]
+
+        blocks.append(block)
+        pred_blocks.append(pred_block)
+
+    if not blocks:
+        raise RuntimeError(
+            "No valid TNN prediction pairs were produced."
+        )
+
+    result_df = pd.concat(
+        blocks,
+        ignore_index=True,
+    )
+    predicted_valid_c = np.concatenate(
+        pred_blocks,
+        axis=0,
+    )
+
+    return result_df, predicted_valid_c
+
+
+def main():
+    device = torch.device(
+        "cuda" if torch.cuda.is_available() else "cpu"
+    )
+
+    model_config = cfg.CONFIG
+    data_path = Path(cfg.DATA_PATH)
+
+    model_path = (
+        f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
+    )
+
+    model, metadata = load_tnn(
+        model_path,
+        device,
+    )
+
+    input_cols = metadata["input_cols"]
+    target_cols = metadata["target_cols"]
+    x_scaler = metadata["x_scaler"]
+    y_scaler = metadata["y_scaler"]
+    dt_s = metadata["dt_s"]
+    window_steps = metadata["window_steps"]
+
+    print("Model loaded successfully")
+    print("Dataset:", metadata.get("dataset", cfg.DS))
+    print("Configuration:", metadata.get("experiment_config", cfg.CONFIG))
+    print("Input columns:", input_cols)
+    print("Target columns:", target_cols)
+    print("Sampling interval:", dt_s)
+
+    if USE_ANOMALY_FILE:
+        test_path = (
+            data_path
+            / "train_test_split"
+            / "with_anomalies"
+            / f"{cfg.DS}_generator_test_w_anomalies.csv"
+        )
+    else:
+        test_path = (
+            data_path
+            / "train_test_split"
+            / f"{cfg.DS}_generator_test.csv"
+        )
+
+    (
+        test_data,
+        actual_df,
+        test_profiles,
+        test_tensor,
+        test_mask,
+    ) = load_and_prepare_test_data(
+        csv_path=test_path,
+        input_cols=input_cols,
+        target_cols=target_cols,
+        x_scaler=x_scaler,
+        y_scaler=y_scaler,
+        checkpoint_dt_s=dt_s,
+        window_steps=window_steps,
+        device=device,
+    )
+
+    predicted_c, pair_mask = predict_tnn(
+        model=model,
+        test_tensor=test_tensor,
+        test_mask=test_mask,
+        input_cols=input_cols,
+        target_cols=target_cols,
+        y_scaler=y_scaler,
+    )
+
+    result_df, predicted_valid_c = flatten_aligned_results(
+        actual_df=actual_df,
+        test_profiles=test_profiles,
+        predicted_c=predicted_c,
+        pair_mask=pair_mask,
+        target_cols=target_cols,
+    )
+
+    actual_c = result_df[target_cols].to_numpy(
+        dtype=float
+    )
+
+    residuals_c = actual_c - predicted_valid_c
+    missing_measurements = ~np.isfinite(actual_c)
+
+    anomalies = (
+        np.abs(residuals_c) > ANOMALY_THRESHOLD
+    ) | missing_measurements
+
+    anomaly_cols = []
+
+    for j, target_col in enumerate(target_cols):
+        result_df[f"{target_col}_predicted"] = (
+            predicted_valid_c[:, j]
+        )
+        result_df[f"{target_col}_residual"] = (
+            residuals_c[:, j]
+        )
+        result_df[f"{target_col}_missing"] = (
+            missing_measurements[:, j]
+        )
+        result_df[f"{target_col}_anomaly"] = (
+            anomalies[:, j]
+        )
+
+        anomaly_cols.append(
+            f"{target_col}_anomaly"
+        )
+
+    result_df["any_anomaly"] = (
+        result_df[anomaly_cols].any(axis=1)
+    )
+
+    result_path = (
+        data_path
+        / "results"
+        / f"{cfg.DS}_{model_config}_tnn_anomaly_results.csv"
+    )
+    result_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    result_df.to_csv(
+        result_path,
+        index=False,
+    )
+
+    print(f"Results saved to: {result_path}")
+
     plot_residuals_inference(
         data=result_df,
-        residual=residual,
+        residual=residuals_c,
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLD,
+        show_threshold=False,
     )
-    # --------------------------------
-    # 12 Actual vs Predicted Plot
-    # --------------------------------
+
     plot_actual_vs_predicted(
-        actual_df=actual_df,
-        predicted=predicted_c,
+        actual_df=result_df,
+        predicted=predicted_valid_c,
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLD,
     )
 
-    # --------------------------------
-    # 13 Actual vs Predicted Scatter Plot
-    # --------------------------------
     plot_predicted_vs_actual_inference(
-        actual_df=actual_df,
-        predicted=predicted_c,
+        actual_df=result_df,
+        predicted=predicted_valid_c,
         target_cols=target_cols,
     )
-    # --------------------------------
-    # Prediction duration
-    # --------------------------------
-    t0 = pd.to_datetime(actual_df["Created"].iloc[0])
-    t1 = pd.to_datetime(actual_df["Created"].iloc[-1])
 
-    duration = t1 - t0
-    hours = duration.total_seconds() / 3600
-    days = hours / 24
-    print()
-    print(f"Prediction horizon: {hours:.2f} hours/{days:.2f} days")
-    print(f"Start time: {t0}")
-    print(f"End time:   {t1}")
-    print()
+    timestamps = pd.to_datetime(
+        result_df[cfg.TS_COL],
+        errors="coerce",
+        utc=True,
+    ).dropna()
+
+    if len(timestamps) >= 2:
+        hours = (
+            timestamps.iloc[-1] - timestamps.iloc[0]
+        ).total_seconds() / 3600.0
+
+        print(
+            f"Prediction horizon: {hours:.2f} hours / "
+            f"{hours / 24.0:.2f} days"
+        )
+
+    print(
+        "Detected anomalous observations:",
+        int(result_df["any_anomaly"].sum()),
+    )
+
 
 if __name__ == "__main__":
     main()

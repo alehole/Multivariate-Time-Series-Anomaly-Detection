@@ -1,637 +1,568 @@
 from pathlib import Path
-from itertools import product
-import os
+
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch import Tensor
 
-from src.models.profile_dataset import (
-    train_val_test_split_profiles,
-    scale_profile_data,
+import config as cfg
+from Methods.Blackbox.common_BB_scripts import set_reproducibility
+from Methods.Blackbox.profile_dataset import (
+    create_profiles,
+    scale_train_val_test_data,
     tensorize_profiles,
 )
-
-from src.models.model_utils import (
-    evaluate_predictions,
-    print_metrics,
-    eval_plot_from_predictions,
-    set_seed,
+from Methods.TNN.experiment_configs import (
+    TNN_MODEL_TYPE,
+    TNN_TRAINING_CONFIG,
+    WINDOW_STEPS,
 )
+from Methods.TNN.tnn_model import build_model
+from scripts.Visualization.metrics import compute_metrics
+from scripts.misc.feature_engineering import ts_cols
 
-from src.config import paths
-from src.models.TNN.tnn_model import build_model
-from src.preprocess.feature_engineering import ts_cols, feature_processing
 
-torch.set_num_threads(os.cpu_count() or 1)
-torch.set_num_interop_threads(1)
-print(torch.get_num_threads())
+def load_and_prepare_data(
+    csv_path: Path,
+) -> tuple[pd.DataFrame, float]:
+    """Load one pre-split dataset and map DS-specific names to generic names."""
 
-#from src.models.TNN.experiment_configs import CYL3_CONFIG as cfg
-from src.models.TNN.experiment_configs import CYL3_CONFIG as cfg
-#from src.models.TNN.experiment_configs import CYL_all_CONFIG as cfg
-#from src.models.TNN.experiment_configs import WINDING_CONFIG_1 as cfg
+    data = pd.read_csv(csv_path)
+    data, dt_s = ts_cols(data, cfg.TS_COL)
 
-# ============================================================
-# COLUMN GROUPS
-# ============================================================
-def get_column_groups(
-    df: pd.DataFrame,
-    target_cols: list[str] | None = None,
-    temperature_cols: list[str] | None = None,
-    drop_cols: list[str] | None = None,
-) -> tuple[list[str], list[str], list[str], list[str]]:
+    required_generic = set(
+        [*cfg.INPUT_COLS, *cfg.TARGET_COLS]
+    )
 
-    target_cols = [c for c in target_cols if c in df.columns]
-
-    if not target_cols:
-        raise ValueError("No target columns found in dataset")
-
-    temperature_cols = [c for c in temperature_cols if c in df.columns]
-
-    drop_columns = drop_cols
-    drop_columns = [c for c in drop_columns if c in df.columns]
-
-    # Non-temperature inputs
-    non_temperature_cols = [
-        c for c in df.columns
-        if c not in set(temperature_cols + drop_columns)
+    raw_model_cols = [
+        raw_col
+        for raw_col, generic_col in cfg.RENAME_MAP.items()
+        if generic_col in required_generic
     ]
 
-    # Temperature inputs excluding targets
-    extra_temp_cols = [c for c in temperature_cols if c not in target_cols]
+    required_raw_cols = [cfg.TS_COL, *raw_model_cols]
 
-    # Final ordered input columns
-    input_cols = extra_temp_cols + non_temperature_cols
+    missing = [
+        col
+        for col in required_raw_cols
+        if col not in data.columns
+    ]
 
-    return target_cols, temperature_cols, non_temperature_cols, input_cols
+    if missing:
+        raise KeyError(
+            f"Missing required columns in {csv_path}: {missing}"
+        )
+
+    data = data[required_raw_cols].copy()
+    data = data.rename(columns=cfg.RENAME_MAP)
+
+    return data, dt_s
 
 
-def train_model(
+def get_tnn_column_groups() -> tuple[list[str], list[str]]:
+    temperature_inputs = [
+        col
+        for col in cfg.INPUT_COLS
+        if col.startswith("T")
+    ]
+
+    temperature_cols = list(
+        dict.fromkeys(
+            [*cfg.TARGET_COLS, *temperature_inputs]
+        )
+    )
+
+    # T7 = HT FW outlet temperature in the mapping.
+    cooling_columns = ["T7"] if "T7" in cfg.INPUT_COLS else []
+
+    return temperature_cols, cooling_columns
+
+
+def _one_step_views(
+    sequence_tensor: torch.Tensor,
+    sequence_mask: torch.Tensor,
+    n_in: int,
+    n_out: int,
+):
+    """Return u(k), y(k+1), valid-pair mask and initial y(k)."""
+
+    if sequence_tensor.shape[1] < 2:
+        raise ValueError(
+            "A TNN profile must contain at least two time steps."
+        )
+
+    x_seq = sequence_tensor[:, :-1, :n_in]
+    y_next = sequence_tensor[:, 1:, -n_out:]
+
+    pair_mask = (
+        sequence_mask[:, :-1]
+        & sequence_mask[:, 1:]
+    )
+
+    state0 = sequence_tensor[:, 0, -n_out:]
+
+    return x_seq, y_next, pair_mask, state0
+
+
+def masked_mse(
+    y_hat: torch.Tensor,
+    y_true: torch.Tensor,
+    mask: torch.Tensor,
+) -> torch.Tensor:
+    mask_f = mask.unsqueeze(-1).to(
+        dtype=y_hat.dtype,
+        device=y_hat.device,
+    ).expand_as(y_hat)
+
+    err = (y_hat - y_true).pow(2) * mask_f
+    return err.sum() / mask_f.sum().clamp(min=1.0)
+
+
+def train_tnn(
     model: nn.Module,
-    train_tensor: Tensor,
-    train_mask: Tensor,
+    train_tensor: torch.Tensor,
+    train_mask: torch.Tensor,
+    val_tensor: torch.Tensor,
+    val_mask: torch.Tensor,
     input_cols: list[str],
     target_cols: list[str],
     dt_s: float,
     *,
-    n_epochs: int = 200,
-    tbptt_size: int = 512,
-    lr: float = 1e-2,
-    weight_decay: float = 1e-5,
-    smoothness_weight: float = 0.01,
-) -> nn.Module:
+    n_epochs: int,
+    tbptt_size: int,
+    lr: float,
+    weight_decay: float,
+    smoothness_weight: float,
+):
+    """Train on TRAIN and restore the epoch with the lowest VALIDATION MSE."""
 
-    # Pointwise MSE is used so that padding can be masked out manually later
+    n_in = len(input_cols)
+    n_out = len(target_cols)
+
+    x_train, y_train, m_train, state0_train = _one_step_views(
+        train_tensor,
+        train_mask,
+        n_in,
+        n_out,
+    )
+
+    x_val, y_val, m_val, state0_val = _one_step_views(
+        val_tensor,
+        val_mask,
+        n_in,
+        n_out,
+    )
+
+    optimizer = optim.AdamW(
+        model.parameters(),
+        lr=lr,
+        weight_decay=weight_decay,
+    )
+
     loss_func = nn.MSELoss(reduction="none")
 
-    # Adam optimizer for parameter updates
-    opt = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    best_val_loss = float("inf")
+    best_state = None
+    best_epoch = None
 
-    # Number of predicted temperatures and number of input features
-    n_out = len(target_cols)
-    n_in = len(input_cols)
+    history = {
+        "train_loss": [],
+        "val_loss": [],
+    }
 
-    # Tensor shape:
-    # B = number of training profiles
-    # T_total = total number of timesteps per padded sequence
-    B, T_total, _ = train_tensor.shape
+    total_steps = x_train.shape[1]
+    n_chunks = int(np.ceil(total_steps / tbptt_size))
 
-    # Number of temporal chunks used for truncated backpropagation
-    n_batches = int(np.ceil(T_total / tbptt_size))
+    for epoch in range(1, n_epochs + 1):
+        model.train()
+        hidden = state0_train
+        epoch_loss = 0.0
 
-    print(f"Train tensor shape: {train_tensor.shape}")
-    print(f"Train mask shape  : {train_mask.shape}")
-    print(f"B={B}, T={T_total}, n_in={n_in}, n_out={n_out}, chunks={n_batches}")
+        for chunk_idx in range(n_chunks):
+            t0 = chunk_idx * tbptt_size
+            t1 = min(
+                (chunk_idx + 1) * tbptt_size,
+                total_steps,
+            )
 
-    # Put model in training mode
-    model.train()
+            x = x_train[:, t0:t1, :]
+            y = y_train[:, t0:t1, :]
+            m = m_train[:, t0:t1]
 
-    with tqdm(desc="Training", total=n_epochs) as pbar:
-        for epoch in range(n_epochs):
+            optimizer.zero_grad(set_to_none=True)
 
-            # Initialize hidden thermal state using the first true target value
-            # Shape: (B, n_out)
-            hidden = train_tensor[:, 0, -n_out:]
+            y_hat, hidden = model(
+                x,
+                hidden.detach(),
+            )
 
-            # Store average epoch loss
-            epoch_loss = 0.0
+            mask_f = m.unsqueeze(-1).to(
+                dtype=y_hat.dtype,
+                device=y_hat.device,
+            )
 
-            for i in range(n_batches):
-                # Time range for current truncated BPTT chunk
-                t0 = i * tbptt_size
-                t1 = min((i + 1) * tbptt_size, T_total)
+            point_loss = loss_func(y_hat, y) * mask_f
+            denom = (
+                mask_f.sum()
+                * n_out
+            ).clamp(min=1.0)
+            prediction_loss = point_loss.sum() / denom
 
-                # Reset gradients before backpropagation
-                opt.zero_grad(set_to_none=True)
+            if y_hat.shape[1] > 1:
+                transition_mask = m[:, 1:] & m[:, :-1]
+                transition_mask_f = transition_mask.unsqueeze(-1).to(
+                    dtype=y_hat.dtype,
+                    device=y_hat.device,
+                )
 
-                # Slice current time chunk
-                # x: input features
-                # y: target temperatures
-                # m: valid timestep mask
-                x = train_tensor[:, t0:t1, :n_in]     # (B, Tchunk, n_in)
-                y = train_tensor[:, t0:t1, -n_out:]   # (B, Tchunk, n_out)
-                m = train_mask[:, t0:t1]              # (B, Tchunk)
+                dy = (
+                    y_hat[:, 1:] - y_hat[:, :-1]
+                ) / dt_s
 
-                # Forward pass through model
-                # hidden.detach() breaks gradient flow between chunks
-                # and implements truncated backpropagation through time
-                yhat, hidden = model(x, hidden.detach())   # (B, Tchunk, n_out)
+                trend_denom = (
+                    transition_mask_f.sum()
+                    * n_out
+                ).clamp(min=1.0)
 
-                # ------------------------------------------------------------
-                # 1) Masked mean squared error
-                # ------------------------------------------------------------
-                # Compute pointwise squared error
-                loss_pt = loss_func(yhat, y)  # (B, Tchunk, n_out)
-
-                # Ignore padded timesteps using the mask
-                loss_pt = loss_pt * m[:, :, None]
-
-                # Normalize by number of valid timesteps and targets
-                denom = m.sum().clamp(min=1).float()
-                loss_mse = loss_pt.sum() / (denom * n_out)
-
-                # ------------------------------------------------------------
-                # 2) Trend / smoothness penalty
-                # ------------------------------------------------------------
-                # Only compute temporal derivatives where two consecutive
-                # timesteps are both valid
-                m_tr = m[:, 1:] & m[:, :-1]   # (B, Tchunk-1)
-
-                # Approximate temperature derivative dT/dt
-                dy = (yhat[:, 1:] - yhat[:, :-1]) / dt_s
-
-                # Penalize large temperature rate-of-change to encourage
-                # smoother and more physically realistic thermal behavior
                 trend_penalty = (
-                    dy.pow(2) * m_tr[:, :, None]
-                ).sum() / (m_tr.sum().clamp(min=1).float() * n_out)
+                    dy.pow(2) * transition_mask_f
+                ).sum() / trend_denom
+            else:
+                trend_penalty = y_hat.new_tensor(0.0)
 
-                # Total loss = prediction loss + smoothness regularization
-                loss = loss_mse + smoothness_weight * trend_penalty
+            loss = (
+                prediction_loss
+                + smoothness_weight * trend_penalty
+            )
 
-                # Backpropagation
-                loss.backward()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(
+                model.parameters(),
+                max_norm=1.0,
+            )
+            optimizer.step()
 
-                # Gradient clipping improves stability for recurrent training
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            epoch_loss += float(loss.item())
 
-                # Update model parameters
-                opt.step()
+        train_loss = epoch_loss / max(n_chunks, 1)
+        history["train_loss"].append(train_loss)
 
-                # Accumulate epoch loss
-                epoch_loss += float(loss.item())
+        model.eval()
+        with torch.no_grad():
+            y_val_hat, _ = model(x_val, state0_val)
+            val_loss = masked_mse(
+                y_val_hat,
+                y_val,
+                m_val,
+            ).item()
 
-            # Average loss over all chunks
-            epoch_loss /= n_batches
+        history["val_loss"].append(val_loss)
 
-            # Update progress bar
-            pbar.update(1)
-            pbar.set_postfix_str(f"loss: {epoch_loss:.2e}")
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_epoch = epoch
+            best_state = {
+                name: value.detach().cpu().clone()
+                for name, value in model.state_dict().items()
+            }
 
-    return model
+        print(
+            f"Epoch {epoch:03d} | "
+            f"train_loss={train_loss:.6f} | "
+            f"val_loss={val_loss:.6f}"
+        )
+
+    if best_state is None:
+        raise RuntimeError("No validation checkpoint was produced.")
+
+    model.load_state_dict(best_state)
+
+    print(
+        f"Restored best validation epoch {best_epoch} "
+        f"with loss {best_val_loss:.6f}"
+    )
+
+    return model, history, best_epoch, best_val_loss
 
 
-def predict_test_set(
+def predict_tnn(
     model: nn.Module,
-    test_tensor: Tensor,
+    sequence_tensor: torch.Tensor,
+    sequence_mask: torch.Tensor,
     input_cols: list[str],
     target_cols: list[str],
     y_scaler,
-) -> np.ndarray:
+):
+    """Generate one-step-ahead predictions in physical temperature units."""
 
-    # Put model in evaluation mode (disables dropout, etc.)
-    model.eval()
-
-    # Number of input features and target variables
     n_in = len(input_cols)
     n_out = len(target_cols)
 
-    # Disable gradient computation during inference
+    x_seq, y_next, pair_mask, state0 = _one_step_views(
+        sequence_tensor,
+        sequence_mask,
+        n_in,
+        n_out,
+    )
+
+    model.eval()
     with torch.no_grad():
+        pred_scaled, _ = model(x_seq, state0)
 
-        # Extract model inputs
-        # Shape: (B, T, n_in)
-        x_test = test_tensor[:, :, :n_in]
+    pred_scaled_np = pred_scaled.detach().cpu().numpy()
+    batch_size, seq_len, n_features = pred_scaled_np.shape
 
-        # Initial thermal state taken from the first true target value
-        # Shape: (B, n_out)
-        state0 = test_tensor[:, 0, -n_out:]
-
-        # Forward pass through the model
-        # pred shape: (B, T, n_out)
-        pred, _ = model(x_test, state0)
-
-        # Move tensor to CPU and convert to NumPy
-        pred = pred.cpu().numpy()
-
-    # Extract dimensions
-    B, T, S = pred.shape
-
-    # ------------------------------------------------------------
-    # Convert predictions back to original temperature scale
-    # ------------------------------------------------------------
-    # During training targets were scaled with. RobustScaler).
-    # Here we apply the inverse transform to recover °C values.
     pred_c = y_scaler.inverse_transform(
-        pred.reshape(-1, S)
-    ).reshape(B, T, S)
+        pred_scaled_np.reshape(-1, n_features)
+    ).reshape(batch_size, seq_len, n_features)
 
-    return pred_c
+    return pred_c, y_next, pair_mask
 
 
-# ============================================================
-# SAVE MODEL
-# ============================================================
-def save_model(
+def evaluate_tnn(
+    model: nn.Module,
+    test_tensor: torch.Tensor,
+    test_mask: torch.Tensor,
+    input_cols: list[str],
+    target_cols: list[str],
+    y_scaler,
+):
+    pred_c, y_true_scaled, pair_mask = predict_tnn(
+        model,
+        test_tensor,
+        test_mask,
+        input_cols,
+        target_cols,
+        y_scaler,
+    )
+
+    y_true_scaled_np = y_true_scaled.detach().cpu().numpy()
+    batch_size, seq_len, n_features = y_true_scaled_np.shape
+
+    y_true_c = y_scaler.inverse_transform(
+        y_true_scaled_np.reshape(-1, n_features)
+    ).reshape(batch_size, seq_len, n_features)
+
+    mask_np = pair_mask.detach().cpu().numpy().astype(bool)
+
+    metrics = compute_metrics(
+        y_true_c[mask_np],
+        pred_c[mask_np],
+    )
+
+    return metrics
+
+
+def save_tnn(
     model: nn.Module,
     x_scaler,
     y_scaler,
     input_cols: list[str],
     target_cols: list[str],
     temperature_cols: list[str],
-    dt_s: float,
-    n_neurons: int,
     cooling_columns: list[str],
-    path: str ,
-    best_params: dict | None = None,
+    dt_s: float,
+    history: dict,
+    best_epoch: int,
+    best_val_loss: float,
+    path: str | Path,
 ):
-
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    save_dict = {
-        "model_state_dict": model.state_dict(),
+    checkpoint = {
+        "model_state_dict": {
+            name: value.detach().cpu()
+            for name, value in model.state_dict().items()
+        },
+        "model_type": TNN_MODEL_TYPE,
+        "dataset": cfg.DS,
+        "experiment_config": cfg.CONFIG,
+        "input_cols": list(input_cols),
+        "target_cols": list(target_cols),
+        "temperature_cols": list(temperature_cols),
+        "cooling_columns": list(cooling_columns),
+        "dt_s": float(dt_s),
+        "window_steps": WINDOW_STEPS,
+        "training_config": dict(TNN_TRAINING_CONFIG),
+        "n_neurons": TNN_TRAINING_CONFIG["n_neurons"],
         "x_scaler": x_scaler,
         "y_scaler": y_scaler,
-        "input_cols": input_cols,
-        "target_cols": target_cols,
-        "temperature_cols": temperature_cols,
-        "dt_s": dt_s,
-        "n_neurons": n_neurons,
-        "cooling_columns": cooling_columns,
+        "history": history,
+        "best_epoch": best_epoch,
+        "best_val_loss": best_val_loss,
+        "one_step_ahead": True,
     }
-    if best_params is not None:
-        save_dict["best_params"] = best_params
 
-    torch.save(save_dict, path)
-    print(f"Model saved to {path}")
-
-def run_grid_search(
-    grid: dict,
-    dt_s: float,
-    input_cols: list[str],
-    target_cols: list[str],
-    temperature_cols: list[str],
-    cooling_columns: list[str],
-    train_tensor: Tensor,
-    train_mask: Tensor,
-    val_tensor: Tensor,
-    val_mask: Tensor,
-    y_scaler,
-    device: torch.device,
-) -> tuple[nn.Module, dict, float]:
-
-    best_score = float("inf")
-    best_params = None
-    best_model = None
-
-    total_runs = (
-        len(grid["n_epochs"])
-        * len(grid["lr"])
-        * len(grid["tbptt_size"])
-        * len(grid["weight_decay"])
-        * len(grid["smoothness_weight"])
-        * len(grid["n_neurons"])
-    )
-
-    for i, (n_epochs, lr, tbptt_size, wd, smooth, n_neurons) in enumerate(
-        product(
-            grid["n_epochs"],
-            grid["lr"],
-            grid["tbptt_size"],
-            grid["weight_decay"],
-            grid["smoothness_weight"],
-            grid["n_neurons"],
-        ),
-        start=1,
-    ):
-        print(
-            f"\n[{i}/{total_runs}] ({i / total_runs * 100:.1f}%) "
-            f"\nTRAINING WITH PARAMETERS: "
-            f"n_epochs={n_epochs}, lr={lr}, tbptt_size={tbptt_size}, "
-            f"weight_decay={wd}, smoothness_weight={smooth}, "
-            f"n_neurons={n_neurons}"
-        )
-
-        model = build_model(
-            dt_s=dt_s,
-            input_cols=input_cols,
-            target_cols=target_cols,
-            temperature_cols=temperature_cols,
-            device=device,
-            cooling_columns=cooling_columns,
-            n_neurons=n_neurons,
-        )
-
-        model = train_model(
-            model=model,
-            train_tensor=train_tensor,
-            train_mask=train_mask,
-            input_cols=input_cols,
-            target_cols=target_cols,
-            dt_s=dt_s,
-            n_epochs=n_epochs,
-            lr=lr,
-            tbptt_size=tbptt_size,
-            weight_decay=wd,
-            smoothness_weight=smooth,
-        )
-
-        pred_c = predict_test_set(
-            model=model,
-            test_tensor=val_tensor,
-            input_cols=input_cols,
-            target_cols=target_cols,
-            y_scaler=y_scaler,
-        )
-
-        metrics = evaluate_predictions(
-            pred_c=pred_c,
-            y_true_scaled=val_tensor[:, :, -len(target_cols):].cpu().numpy(),
-            mask=val_mask.cpu().numpy(),
-            y_scaler=y_scaler,
-        )
-        score = metrics["rmse"]
-
-        print(
-            f"n_epochs={n_epochs}, lr={lr}, tbptt_size={tbptt_size}, "
-            f"weight_decay={wd}, smoothness_weight={smooth}, "
-            f"rmse={metrics['rmse']:.4f}, mae={metrics['mae']:.4f}, "
-            f"mse={metrics['mse']:.4f}, max_abs={metrics['max_abs']:.4f}"
-        )
-
-        if score < best_score:
-            best_score = score
-            best_params = {
-                "n_epochs": n_epochs,
-                "lr": lr,
-                "tbptt_size": tbptt_size,
-                "weight_decay": wd,
-                "smoothness_weight": smooth,
-                "n_neurons": n_neurons,
-            }
-            best_model = model
-
-    if best_model is None or best_params is None:
-        raise RuntimeError("Grid search failed to produce a best model.")
-
-    return best_model, best_params, best_score
-
+    torch.save(checkpoint, path)
+    print(f"TNN model saved to {path}")
 
 
 def main():
-    set_seed(42)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # =============================================================================
-    # CONFIG
-    # =============================================================================
-    TS_COL = cfg["ts_col"]
-    WINDOW_STEPS = cfg["window_steps"]
-    TEST_PROFILE_LEN = cfg["test_profile_len"]
-    VALIDATION_PROFILE_LEN = cfg["val_profile_len"]
+    set_reproducibility(cfg.SEED)
 
-    grid = cfg["grid"]
-    grid_search = False
+    data_path = Path(cfg.DATA_PATH)
+    model_config = cfg.CONFIG
+    # -----------------------------------------------------
+    # Load the three pre-split datasets
+    # -----------------------------------------------------
+    train_path = data_path/"train_test_split"/ f"{cfg.DS}_generator_train.csv"
+    val_path = data_path/"train_test_split"/f"{cfg.DS}_generator_val.csv"
+    test_path = data_path/"train_test_split"/ f"{cfg.DS}_generator_test.csv"
 
-    params = cfg["default_params"]
-    n_epochs = params["n_epochs"]
-    lr = params["lr"]
-    tbptt_size = params["tbptt_size"]
-    weight_decay = params["weight_decay"]
-    smoothness_weight = params["smoothness_weight"]
-    best_n_neurons = params["n_neurons"]
+    train_data, train_dt_s = load_and_prepare_data(train_path)
+    val_data, val_dt_s = load_and_prepare_data(val_path)
+    test_data, test_dt_s = load_and_prepare_data(test_path)
 
-    target_cols = cfg["target_cols"]
-    temperature_cols = list(dict.fromkeys(cfg["temperature_cols"] + target_cols))
-    excluded_cols = cfg["excluded_cols"]
-    cooling_columns = cfg["cooling_columns"]
+    dt_s = train_dt_s
 
-    drop_columns = [
-                       "profile_id",
-                       TS_COL,
-                       "Modified",
-                       "Inserted",
-                       "AE PS POWER COUNTER",
-                       "AE PS RUNNING",
-                   ] + excluded_cols
-
-
-    # =============================================================================
-    # 1) LOAD DATA
-    # =============================================================================
-    dataset=1
-    #split_NUMERIC_DIR = paths.DATASET_PATH / "split" / f"Dataset_{dataset}" / "numeric" / "AE_PORT.csv"
-    split_NUMERIC_DIR = paths.DATASET_PATH / "split" / "temp" / "AE_PORT_with_extra_TEMP.csv"
-    data = pd.read_csv(split_NUMERIC_DIR)
-    # =============================================================================
-    # 2) TIMESTAMP CLEANING
-    # =============================================================================
-    data , dt_s= ts_cols(data, TS_COL)
-    # =============================================================================
-    # 3) FEATURE PROCESSING
-    # =============================================================================
-    data = feature_processing(data)
-
-    target_cols, temperature_cols, non_temperature_cols, input_cols = get_column_groups(
-        data,
-        target_cols=target_cols,
-        temperature_cols=temperature_cols,
-        drop_cols=drop_columns,
-    )
-
-    print("LEN TARGET COLS:", len(target_cols))
-    print("TARGET COLS:", target_cols)
-    print("LEN TEMPERATURE COLS:", len(temperature_cols))
-    print("TEMPERATURE COLS:", temperature_cols)
-    print("LEN NON-TEMPERATURE COLS:", len(non_temperature_cols))
-    print("NON-TEMPERATURE COLS:", non_temperature_cols)
-    print("LEN INPUT COLS:", len(input_cols))
-    print("INPUT COLS:", input_cols)
-    # =============================================================================
-    # 5 SPLIT INTO TRAIN/ VALIDATION / TEST SET
-    # =============================================================================
-    data, train_profiles, val_profiles, test_profiles, profile_sizes = train_val_test_split_profiles(
-        data,
-        ts_col=TS_COL,
+    # -----------------------------------------------------
+    # Profile each split independently
+    # -----------------------------------------------------
+    train_data, train_profiles = create_profiles(
+        train_data,
+        ts_col=cfg.TS_COL,
         window_steps=WINDOW_STEPS,
-        val_profile_len=VALIDATION_PROFILE_LEN,
-        test_profile_len=TEST_PROFILE_LEN,
-        dt_s=dt_s,
+        dt_s=train_dt_s,
     )
-    # =============================================================================
-    # 6) SCALING
-    # =============================================================================
-    data, x_scaler, y_scaler = scale_profile_data(
-        data,
-        train_profiles,
-        input_cols,
-        target_cols,
+    val_data, val_profiles = create_profiles(
+        val_data,
+        ts_col=cfg.TS_COL,
+        window_steps=WINDOW_STEPS,
+        dt_s=val_dt_s,
     )
-    # =============================================================================
-    # 7) TENSORISE
-    # =============================================================================
+    test_data, test_profiles = create_profiles(
+        test_data,
+        ts_col=cfg.TS_COL,
+        window_steps=WINDOW_STEPS,
+        dt_s=test_dt_s,
+    )
+    # -----------------------------------------------------
+    # Fit scalers on training data and apply to all splits
+    # -----------------------------------------------------
+    (
+        train_data,
+        val_data,
+        test_data,
+        x_scaler,
+        y_scaler,
+    ) = scale_train_val_test_data(
+        train_data=train_data,
+        val_data=val_data,
+        test_data=test_data,
+        input_cols=cfg.INPUT_COLS,
+        target_cols=cfg.TARGET_COLS,
+    )
+    # -----------------------------------------------------
+    # Tensor creation
+    # -----------------------------------------------------
     x_train, y_train, train_mask = tensorize_profiles(
-        df=data,
-        profiles=train_profiles,
-        input_cols=input_cols,
-        target_cols=target_cols,
-        device=device
+        train_data,
+        train_profiles,
+        cfg.INPUT_COLS,
+        cfg.TARGET_COLS,
+        device=cfg.DEVICE,
     )
-
     x_val, y_val, val_mask = tensorize_profiles(
-        df=data,
-        profiles=val_profiles,
-        input_cols=input_cols,
-        target_cols=target_cols,
-        device=device
+        val_data,
+        val_profiles,
+        cfg.INPUT_COLS,
+        cfg.TARGET_COLS,
+        device=cfg.DEVICE,
     )
-
     x_test, y_test, test_mask = tensorize_profiles(
-        df=data,
-        profiles=test_profiles,
-        input_cols=input_cols,
-        target_cols=target_cols,
-        device=device
+        test_data,
+        test_profiles,
+        cfg.INPUT_COLS,
+        cfg.TARGET_COLS,
+        device=cfg.DEVICE,
     )
 
     train_tensor = torch.cat([x_train, y_train], dim=2)
     val_tensor = torch.cat([x_val, y_val], dim=2)
     test_tensor = torch.cat([x_test, y_test], dim=2)
 
+    temperature_cols, cooling_columns = get_tnn_column_groups()
 
-    # =============================================================================
-    # 8) Build Model
-    # =============================================================================
+    print("Dataset:", cfg.DS)
+    print("Configuration:", cfg.CONFIG)
+    print("Inputs:", cfg.INPUT_COLS)
+    print("Targets:", cfg.TARGET_COLS)
+    print("Thermal nodes:", temperature_cols)
+    print("Cooling columns:", cooling_columns)
+    # -----------------------------------------------------
+    # Model
+    # -----------------------------------------------------
     model = build_model(
         dt_s=dt_s,
-        input_cols=input_cols,
-        target_cols=target_cols,
+        input_cols=cfg.INPUT_COLS,
+        target_cols=cfg.TARGET_COLS,
         temperature_cols=temperature_cols,
-        device=device,
+        device=cfg.DEVICE,
         cooling_columns=cooling_columns,
-        n_neurons=best_n_neurons
+        n_neurons=TNN_TRAINING_CONFIG["n_neurons"],
     )
-    # =============================================================================
-    # 9) Train model
-    # =============================================================================
-    best_params = None
 
-    if grid_search:
-        model, best_params, best_score = run_grid_search(
-            grid=grid,
-            dt_s=dt_s,
-            input_cols=input_cols,
-            target_cols=target_cols,
-            temperature_cols=temperature_cols,
-            cooling_columns=cooling_columns,
-            train_tensor=train_tensor,
-            train_mask=train_mask,
-            val_tensor=val_tensor,
-            val_mask=val_mask,
-            y_scaler=y_scaler,
-            device=device,
-        )
-
-        print("Best params:", best_params)
-        print(f"Best validation RMSE: {best_score:.4f}")
-
-        best_n_neurons = best_params["n_neurons"]
-
-        pred_c = predict_test_set(
-            model=model,
-            test_tensor=test_tensor,
-            input_cols=input_cols,
-            target_cols=target_cols,
-            y_scaler=y_scaler,
-        )
-
-        metrics = evaluate_predictions(
-            pred_c=pred_c,
-            y_true_scaled=test_tensor[:, :, -len(target_cols):].cpu().numpy(),
-            mask=test_mask.cpu().numpy(),
-            y_scaler=y_scaler,
-        )
-
-        print_metrics(metrics)
-    else:
-
-        model = train_model(
-            model=model,
-            train_tensor=train_tensor,
-            train_mask=train_mask,
-            input_cols=input_cols,
-            target_cols=target_cols,
-            dt_s=dt_s,
-            n_epochs=n_epochs,
-            tbptt_size=tbptt_size,
-            lr=lr,
-            weight_decay=weight_decay,
-            smoothness_weight=smoothness_weight,
-        )
-        pred_c = predict_test_set(
-            model=model,
-            test_tensor=test_tensor,
-            input_cols=input_cols,
-            target_cols=target_cols,
-            y_scaler=y_scaler,
-        )
-
-        metrics = evaluate_predictions(
-            pred_c=pred_c,
-            y_true_scaled=test_tensor[:, :, -len(target_cols):].cpu().numpy(),
-            mask=test_mask.cpu().numpy(),
-            y_scaler=y_scaler,
-        )
-        print_metrics(metrics)
-
-    # =============================================================================
-    # 10) Evaluate model
-    # =============================================================================
-    eval_plot_from_predictions(
-        pred_c=pred_c,
+    # -----------------------------------------------------
+    # Training
+    # -----------------------------------------------------
+    model, history, best_epoch, best_val_loss = train_tnn(
+        model=model,
+        train_tensor=train_tensor,
+        train_mask=train_mask,
+        val_tensor=val_tensor,
+        val_mask=val_mask,
+        input_cols=cfg.INPUT_COLS,
+        target_cols=cfg.TARGET_COLS,
+        dt_s=dt_s,
+        **{
+            key: value
+            for key, value in TNN_TRAINING_CONFIG.items()
+            if key != "n_neurons"
+        },
+    )
+    # -----------------------------------------------------
+    # Final test evaluation
+    # -----------------------------------------------------
+    metrics = evaluate_tnn(
+        model=model,
+        test_tensor=test_tensor,
         test_mask=test_mask,
-        data=data,
-        test_profiles=test_profiles,
-        target_cols=target_cols,
+        input_cols=cfg.INPUT_COLS,
+        target_cols=cfg.TARGET_COLS,
         y_scaler=y_scaler,
-        ts_col=TS_COL,
     )
-    # =============================================================================
-    # 11) SAVE MODEL
-    # =============================================================================
-    save_model(
+
+    print(
+        "Final test metrics: "
+        f"rmse={metrics['rmse']:.4f}, "
+        f"mae={metrics['mae']:.4f}, "
+        f"mse={metrics['mse']:.4f}, "
+        f"max_abs={metrics['max_abs']:.4f}"
+    )
+
+    model_path = (
+        f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
+    )
+    # -----------------------------------------------------
+    # Save model and preprocessing metadata
+    # -----------------------------------------------------
+    save_tnn(
         model=model,
         x_scaler=x_scaler,
         y_scaler=y_scaler,
-        input_cols=input_cols,
-        target_cols=target_cols,
+        input_cols=cfg.INPUT_COLS,
+        target_cols=cfg.TARGET_COLS,
         temperature_cols=temperature_cols,
-        dt_s=dt_s,
-        n_neurons=best_n_neurons,
         cooling_columns=cooling_columns,
-        path=paths.file_TNN_MODEL_cyl3,
-        best_params=best_params if grid_search else {
-            "n_epochs": n_epochs,
-            "lr": lr,
-            "tbptt_size": tbptt_size,
-            "weight_decay": weight_decay,
-            "smoothness_weight": smoothness_weight,
-            "n_neurons": best_n_neurons,
-        }
+        dt_s=dt_s,
+        history=history,
+        best_epoch=best_epoch,
+        best_val_loss=best_val_loss,
+        path=model_path,
     )
+
+
 if __name__ == "__main__":
     main()
