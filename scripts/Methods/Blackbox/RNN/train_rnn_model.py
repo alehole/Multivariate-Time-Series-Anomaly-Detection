@@ -59,10 +59,9 @@ def main():
     # -----------------------------------------------------
     # Load the three pre-split datasets
     # -----------------------------------------------------
-    train_path = data_path / "train_test_split/ds1_generator_train.csv"
-    val_path   = data_path / "train_test_split/ds1_generator_val.csv"
-    test_path  = data_path / "train_test_split/ds1_generator_test.csv"
-
+    train_path = data_path/"train_test_split"/f"{cfg.DS}_generator_train.csv"
+    val_path = data_path/"train_test_split"/ f"{cfg.DS}_generator_val.csv"
+    test_path = data_path/"train_test_split"/ f"{cfg.DS}_generator_test.csv"
 
     train_data, train_dt_s = load_and_prepare_data(train_path)
     val_data, val_dt_s = load_and_prepare_data(val_path)
@@ -191,6 +190,7 @@ def main():
         target_cols=cfg.TARGET_COLS,
         y_scaler=y_scaler,
         ts_col=cfg.TS_COL,
+        show_threshold=False,
     )
 
     # -----------------------------------------------------
@@ -211,7 +211,7 @@ def main():
             "seed": cfg.SEED,
         },
         dt_s=dt_s,
-        path=f"{model_config}_{model_name}_winding_baseline.pt",
+        path=f"{cfg.DS}_{model_config}_{model_name}_winding_baseline.pt",
         history=history,
     )
 

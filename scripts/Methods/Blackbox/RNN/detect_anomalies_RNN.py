@@ -168,7 +168,7 @@ def load_and_prepare_test_data(
     )
 
 def main():
-    ANOMALY_THRESHOLD = 5.0
+    ANOMALY_THRESHOLD = 10.0
     model_config = cfg.CONFIG
 
     # -----------------------------------------------------
@@ -179,7 +179,7 @@ def main():
     )
     model_type = method_cfg.RNN_MODEL_TYPE
     model, metadata = load_trained_recurrent_model(
-        model_path=f"{model_config}_{model_type}_winding_baseline.pt",
+        model_path=f"{cfg.DS}_{model_config}_{model_type.lower()}_winding_baseline.pt",
         device=device,
     )
 
@@ -201,8 +201,7 @@ def main():
 
     #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_generator_test_w_anomalies.csv"
     test_path = data_path / "train_test_split" / "ds1_generator_test.csv"
-
-
+    test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
     (
         test_data,
         actual_df,
@@ -303,12 +302,8 @@ def main():
     # -----------------------------------------------------
     # 7. Save results
     # -----------------------------------------------------
-    result_path = (
-            data_path
-            / "results"
-            / "rnn_anomaly_results.csv"
-    )
 
+    result_path = data_path / "results"/ f"{cfg.DS}_{model_config}_{model_type.lower()}_anomaly_results.csv"
     result_path.parent.mkdir(
         parents=True,
         exist_ok=True,
@@ -329,6 +324,7 @@ def main():
         residual=residuals_c,
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLD,
+        show_threshold=False,
     )
 
     # -----------------------------------------------------
