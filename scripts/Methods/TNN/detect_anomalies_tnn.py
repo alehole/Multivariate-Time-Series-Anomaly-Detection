@@ -19,11 +19,6 @@ from Visualization.prediction_plots import (
 from Visualization.residual_plots import plot_residuals_inference
 from scripts.misc.feature_engineering import ts_cols
 
-
-ANOMALY_THRESHOLD = 5.0
-USE_ANOMALY_FILE = False
-
-
 def load_tnn(
     path: str | Path,
     device: torch.device,
@@ -326,18 +321,19 @@ def main():
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )
+    ANOMALY_THRESHOLD = 5.0
+    USE_ANOMALY_FILE = False
 
     model_config = cfg.CONFIG
     data_path = Path(cfg.DATA_PATH)
 
-    model_path = (
-        f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
-    )
 
-    model, metadata = load_tnn(
-        model_path,
-        device,
-    )
+    # -----------------------------------------------------
+    # 1. Load pretrained model
+    # -----------------------------------------------------
+    model_path = f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
+
+    model, metadata = load_tnn(model_path, device)
 
     input_cols = metadata["input_cols"]
     target_cols = metadata["target_cols"]
@@ -353,19 +349,14 @@ def main():
     print("Target columns:", target_cols)
     print("Sampling interval:", dt_s)
 
+
+    # -----------------------------------------------------
+    # 2. Load and prepare anomaly test dataset
+    # -----------------------------------------------------
     if USE_ANOMALY_FILE:
-        test_path = (
-            data_path
-            / "train_test_split"
-            / "with_anomalies"
-            / f"{cfg.DS}_generator_test_w_anomalies.csv"
-        )
+        test_path = data_path/"train_test_split"/ "with_anomalies"/ f"{cfg.DS}_generator_test_w_anomalies.csv"
     else:
-        test_path = (
-            data_path
-            / "train_test_split"
-            / f"{cfg.DS}_generator_test.csv"
-        )
+        test_path = data_path/"train_test_split"/f"{cfg.DS}_generator_test.csv"
 
     (
         test_data,
@@ -384,6 +375,9 @@ def main():
         device=device,
     )
 
+    # -----------------------------------------------------
+    # 3. Predict winding temperatures
+    # -----------------------------------------------------
     predicted_c, pair_mask = predict_tnn(
         model=model,
         test_tensor=test_tensor,
@@ -405,6 +399,10 @@ def main():
         dtype=float
     )
 
+
+    # -----------------------------------------------------
+    # 4. Calculate residuals and anomaly flags
+    # -----------------------------------------------------
     residuals_c = actual_c - predicted_valid_c
     missing_measurements = ~np.isfinite(actual_c)
 
@@ -412,8 +410,11 @@ def main():
         np.abs(residuals_c) > ANOMALY_THRESHOLD
     ) | missing_measurements
 
-    anomaly_cols = []
 
+    # -----------------------------------------------------
+    # 5. Build result dataframe
+    # -----------------------------------------------------
+    anomaly_cols = []
     for j, target_col in enumerate(target_cols):
         result_df[f"{target_col}_predicted"] = (
             predicted_valid_c[:, j]
@@ -435,7 +436,9 @@ def main():
     result_df["any_anomaly"] = (
         result_df[anomaly_cols].any(axis=1)
     )
-
+    # -----------------------------------------------------
+    # 6. Save results
+    # -----------------------------------------------------
     result_path = (
         data_path
         / "results"
@@ -452,6 +455,9 @@ def main():
 
     print(f"Results saved to: {result_path}")
 
+    # -----------------------------------------------------
+    # 7. Plot residuals
+    # -----------------------------------------------------
     plot_residuals_inference(
         data=result_df,
         residual=residuals_c,
@@ -459,20 +465,26 @@ def main():
         anomaly_threshold=ANOMALY_THRESHOLD,
         show_threshold=False,
     )
-
+    # -----------------------------------------------------
+    # 8. Plot actual versus predicted
+    # -----------------------------------------------------
     plot_actual_vs_predicted(
         actual_df=result_df,
         predicted=predicted_valid_c,
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLD,
     )
-
+    # -----------------------------------------------------
+    # 9. Plot actual versus predicted scatter
+    # -----------------------------------------------------
     plot_predicted_vs_actual_inference(
         actual_df=result_df,
         predicted=predicted_valid_c,
         target_cols=target_cols,
     )
-
+    # -----------------------------------------------------
+    # 10. Prediction duration
+    # -----------------------------------------------------
     timestamps = pd.to_datetime(
         result_df[cfg.TS_COL],
         errors="coerce",
@@ -493,7 +505,6 @@ def main():
         "Detected anomalous observations:",
         int(result_df["any_anomaly"].sum()),
     )
-
-
+    
 if __name__ == "__main__":
     main()
