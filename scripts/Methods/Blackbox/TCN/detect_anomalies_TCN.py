@@ -176,7 +176,8 @@ def main():
     )
 
     model, metadata = load_trained_tcn(
-        model_path=f"{model_config}_tcn_winding_baseline.pt",
+        model_path=f"{cfg.DS}_{model_config}_tcn_winding_baseline.pt",
+
         device=device,
     )
 

@@ -29,30 +29,55 @@ TS_COL = "Created"
 # ---------------------------------------------------------
 # Data model configuration shared by all methods
 # ---------------------------------------------------------
-RENAME_MAP = {
-    "AE PORT GEN.U-WINDING TEMP.": "T1",
-    "AE PORT GEN.V-WINDING TEMP.": "T2",
-    "AE PORT GEN.W-WINDING TEMP.": "T3",
-    "AE_PS_EXH": "T4",
-    "AE PORT END BRG.TEMP.": "T5",
-    "AE PORT LUB.OIL TEMP.": "T6",
-    "AE PORT HT FW OUTLET TEMP.": "T7",
-    "AE PORT TC EXH.GAS OUT.TEMP.": "T8",
-    "AE PORT LUB.OIL PRESS.": "P1",
-    "POWER_kW": "E1",
-    "POWER_kW_sq": "E2",
-    "AE PORT CYL.1 EXH.GAS TEMP.": "T9",
-    "AE PORT CYL.2 EXH.GAS TEMP.": "T10",
-    "AE PORT CYL.3 EXH.GAS TEMP.": "T11",
-    "AE PORT CYL.4 EXH.GAS TEMP.": "T12",
-    "AE PORT CYL.5 EXH.GAS TEMP.": "T13",
-    "AE PORT CYL.6 EXH.GAS TEMP.": "T14",
-}
+DS = "ds2"
+
+if DS=="ds1":
+    RENAME_MAP = {
+        "AE PORT GEN.U-WINDING TEMP.": "T1",
+        "AE PORT GEN.V-WINDING TEMP.": "T2",
+        "AE PORT GEN.W-WINDING TEMP.": "T3",
+        "AE_PS_EXH": "T4",
+        "AE PORT END BRG.TEMP.": "T5",
+        "AE PORT LUB.OIL TEMP.": "T6",
+        "AE PORT HT FW OUTLET TEMP.": "T7",
+        "AE PORT TC EXH.GAS OUT.TEMP.": "T8",
+        "AE PORT LUB.OIL PRESS.": "P1",
+        "POWER_kW": "E1",
+        "POWER_kW_sq": "E2",
+        "AE PORT CYL.1 EXH.GAS TEMP.": "T9",
+        "AE PORT CYL.2 EXH.GAS TEMP.": "T10",
+        "AE PORT CYL.3 EXH.GAS TEMP.": "T11",
+        "AE PORT CYL.4 EXH.GAS TEMP.": "T12",
+        "AE PORT CYL.5 EXH.GAS TEMP.": "T13",
+        "AE PORT CYL.6 EXH.GAS TEMP.": "T14",
+    }
+elif DS=="ds2":
+    RENAME_MAP = {
+        "AE STBD GEN.U-WINDING TEMP.": "T1",
+        "AE STBD GEN.V-WINDING TEMP.": "T2",
+        "AE STBD GEN.W-WINDING TEMP.": "T3",
+        "AE_SB_EXH": "T4",
+        "AE STBD END BRG.TEMP.": "T5",
+        "AE STBD LUB.OIL TEMP.": "T6",
+        "AE STBD HT FW OUTLET TEMP.": "T7",
+        "AE STBD TC EXH.GAS OUT.TEMP.": "T8",
+        "AE STBD LUB.OIL PRESS.": "P1",
+        "POWER_kW": "E1",
+        "POWER_kW_sq": "E2",
+        "AE STBD CYL.1 EXH.GAS TEMP.": "T9",
+        "AE STBD CYL.2 EXH.GAS TEMP.": "T10",
+        "AE STBD CYL.3 EXH.GAS TEMP.": "T11",
+        "AE STBD CYL.4 EXH.GAS TEMP.": "T12",
+        "AE STBD CYL.5 EXH.GAS TEMP.": "T13",
+        "AE STBD CYL.6 EXH.GAS TEMP.": "T14",
+    }
 
 # ---------------------------------------------------------
 # Global model configurations
 # ---------------------------------------------------------
 CONFIG = "MC2"
+
+
 
 MODEL_CONFIGS = {
     "MC1": {
