@@ -198,6 +198,7 @@ def main():
     # -----------------------------------------------------
     model_name = RNN_MODEL_TYPE.lower()
 
+
     save_sequence_model(
         model=model,
         x_scaler=x_scaler,
@@ -211,7 +212,7 @@ def main():
             "seed": cfg.SEED,
         },
         dt_s=dt_s,
-        path=f"{cfg.DS}_{model_config}_{model_name}_winding_baseline.pt",
+        path=f"{cfg.DS}_{cfg.OUTPUT_TYPE}_{model_config}_{model_name}_winding_baseline.pt",
         history=history,
     )
 

@@ -542,9 +542,8 @@ def main():
         f"max_abs={metrics['max_abs']:.4f}"
     )
 
-    model_path = (
-        f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
-    )
+    model_path = f"{cfg.DS}_{cfg.OUTPUT_TYPE}_{model_config}_tnn_winding_baseline.pt"
+
     # -----------------------------------------------------
     # Save model and preprocessing metadata
     # -----------------------------------------------------

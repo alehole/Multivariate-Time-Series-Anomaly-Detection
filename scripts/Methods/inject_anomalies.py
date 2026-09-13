@@ -94,117 +94,159 @@ def plot_original_vs_modified(
     else:
         plt.close(fig)
 
+def get_raw_sensor_name(generic_name: str) -> str:
+    """Return the DS-specific raw sensor name for a generic sensor name."""
+
+    for raw_name, mapped_name in cfg.RENAME_MAP.items():
+        if mapped_name == generic_name:
+            return raw_name
+
+    raise KeyError(
+        f"Generic sensor '{generic_name}' was not found in cfg.RENAME_MAP."
+    )
 
 def main():
     data_path = Path(cfg.DATA_PATH)
 
-    input_path = (
-        data_path
-        / "train_test_split"
-        / "ds1_generator_test.csv"
-    )
+    # =====================================================
+    # EXPERIMENT CONFIGURATION
+    # =====================================================
 
-    output_path = (
-        data_path
-        / "train_test_split"
-        / "with_anomalies"
-        / "ds1_generator_test_w_anomalies.csv"
-    )
+    # Generic sensor name from config.py
+    sensor = "T1"
 
-    plot_path = (
-        data_path
-        / "train_test_split"
-        / "with_anomalies"
-        / "injected_anomaly_comparison.png"
-    )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # Resolve to DS-specific raw name
+    col = get_raw_sensor_name(sensor)
 
-    # --------------------------------
-    # Load dataset
-    # --------------------------------
+    # Select ONE synthetic fault
+    fault = "F2"
+
+    # =====================================================
+    # PATHS
+    # =====================================================
+
+    input_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
+    output_dir = data_path/ "train_test_split"/"with_anomalies"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir/ f"{cfg.DS}_{fault}_{sensor}_test.csv"
+    plot_path = output_dir/ f"{cfg.DS}_{fault}_{sensor}_comparison.png"
+
+    # =====================================================
+    # LOAD ORIGINAL TEST DATA
+    # =====================================================
+
     data = pd.read_csv(input_path)
-
-    # Keep an unchanged copy for comparison.
     original_data = data.copy(deep=True)
 
-    # Sensor to compare in the plot.
-    col = "AE PORT LUB.OIL TEMP."
+    # =====================================================
+    # INJECT SYNTHETIC FAULT
+    # =====================================================
 
-    # --------------------------------
-    # Select injected anomalies
-    # --------------------------------
-    inj_drift_fault = False
-    inj_sensor_dropout = False
-    inj_noise_fault = False
-    inj_bias_fault = True
-    inj_stuck_sensor = False
+    if fault == "F1":
+        start_idx = 100
+        end_idx = 600
+        noise_std = 1.0
 
-    labelstring = "anomaly"
-    # --------------------------------
-    # Inject anomalies
-    # --------------------------------
-    if inj_drift_fault:
-        data = ai.inject_drift_fault(
-            df=data,
-            col=col,
-            start_idx=200,
-            end_idx=1000,
-            final_drift=3.0,
-        )
-
-    if inj_sensor_dropout:
-        data = ai.inject_sensor_dropout(
-            df=data,
-            col=col,
-            start_idx=100,
-            end_idx=600,
-        )
-
-    if inj_noise_fault:
         data = ai.inject_noise_fault(
             df=data,
             col=col,
-            start_idx=100,
-            end_idx=600,
-            noise_std=1.0,
+            start_idx=start_idx,
+            end_idx=end_idx,
+            noise_std=noise_std,
         )
 
-    if inj_bias_fault:
+        data.loc[start_idx:end_idx - 1, "synthetic_anomaly"] = True
+        data.loc[start_idx:end_idx - 1, "synthetic_fault"] = "F1"
+        label_string = f"Additive noise ($\\sigma={noise_std}$ °C)"
+
+    elif fault == "F2":
+        start_idx = 200
+        bias = 1.0
+
         data = ai.inject_bias_fault(
             df=data,
             col=col,
-            start_idx=200,
-            bias=1.0,
+            start_idx=start_idx,
+            bias=bias,
         )
-        labelstring="Bias anomaly amplitude 1"
 
-    if inj_stuck_sensor:
+        data.loc[start_idx:, "synthetic_anomaly"] = True
+        data.loc[start_idx:, "synthetic_fault"] = "F2"
+        label_string =  f"Constant bias (+{bias:.1f} °C)"
+
+    elif fault == "F3":
+        start_idx = 800
         data = ai.inject_stuck_sensor(
             df=data,
             col=col,
-            start_idx=800,
+            start_idx=start_idx,
         )
 
+        data.loc[start_idx:, "synthetic_anomaly"] = True
+        data.loc[start_idx:, "synthetic_fault"] = "F3"
+        label_string = "Stuck sensor"
 
-    # --------------------------------
-    # Plot original and modified data
-    # --------------------------------
+    elif fault == "F4":
+        start_idx = 100
+        end_idx = 600
+
+        data = ai.inject_sensor_dropout(
+            df=data,
+            col=col,
+            start_idx=start_idx,
+            end_idx=end_idx,
+        )
+
+        data.loc[start_idx:end_idx - 1, "synthetic_anomaly"] = True
+        data.loc[start_idx:end_idx - 1, "synthetic_fault"] = "F4"
+        label_string = "Sensor dropout"
+
+    elif fault == "F5":
+        start_idx = 200
+        end_idx = 1000
+        final_drift = 3.0
+
+        data = ai.inject_drift_fault(
+            df=data,
+            col=col,
+            start_idx=start_idx,
+            end_idx=end_idx,
+            final_drift=final_drift,
+        )
+
+        data.loc[ start_idx:end_idx - 1, "synthetic_anomaly"] = True
+        data.loc[start_idx:end_idx - 1,"synthetic_fault"] = "F5"
+        label_string = "Gradual drift ({final_drift:.1f} °C)"
+
+
+  # =====================================================
+    # PLOT
+    # =====================================================
+
     plot_original_vs_modified(
         original_data=original_data,
         modified_data=data,
         col=col,
-        time_col="Created",
+        time_col=cfg.TS_COL,
         save_path=plot_path,
         show=True,
-        label_string=labelstring
+        label_string=label_string,
     )
 
-    # --------------------------------
-    # Save modified dataset
-    # --------------------------------
-    data.to_csv(output_path, index=False)
+    # =====================================================
+    # SAVE
+    # =====================================================
 
-    print(f"Dataset saved to: {output_path}")
+    data.to_csv(
+        output_path,
+        index=False,
+    )
+
+    print()
+    print(f"Dataset : {cfg.DS}")
+    print(f"Sensor  : {sensor} -> {col}")
+    print(f"Fault   : {fault}")
+    print(f"Saved   : {output_path}")
 
 
 if __name__ == "__main__":

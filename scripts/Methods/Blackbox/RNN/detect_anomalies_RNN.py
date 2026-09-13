@@ -179,7 +179,7 @@ def main():
     )
     model_type = method_cfg.RNN_MODEL_TYPE
     model, metadata = load_trained_recurrent_model(
-        model_path=f"{cfg.DS}_{model_config}_{model_type.lower()}_winding_baseline.pt",
+        model_path=f"{cfg.DS}_{cfg.OUTPUT_TYPE}_{model_config}_{model_type.lower()}_winding_baseline.pt",
         device=device,
     )
 

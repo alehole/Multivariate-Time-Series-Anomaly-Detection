@@ -200,10 +200,7 @@ def load_and_prepare_test_data(
         device=device,
     )
 
-    test_tensor = torch.cat(
-        [x_test, y_test],
-        dim=2,
-    )
+    test_tensor = torch.cat([x_test, y_test], dim=2)
 
     return (
         data,
@@ -212,7 +209,6 @@ def load_and_prepare_test_data(
         test_tensor,
         mask_test,
     )
-
 
 def predict_tnn(
     model,
@@ -327,7 +323,7 @@ def main():
     # -----------------------------------------------------
     # 1. Load pretrained model
     # -----------------------------------------------------
-    model_path = f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
+    model_path = f"{cfg.DS}_{cfg.OUTPUT_TYPE}_{model_config}_tnn_winding_baseline.pt"
     model, metadata = load_tnn(model_path, cfg.DEVICE)
 
     input_cols = metadata["input_cols"]
