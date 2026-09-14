@@ -26,8 +26,7 @@ SEED = 42
 TS_COL = "Created"
 
 DS = "ds1"
-CONFIG = "MC3"
-OUTPUT_TYPE="SINGLE_OUTPUT"
+CONFIG = "MC4"
 # ---------------------------------------------------------
 # Data model configuration shared by all methods
 # ---------------------------------------------------------

@@ -168,19 +168,17 @@ def load_and_prepare_test_data(
     )
 
 def main():
-    ANOMALY_THRESHOLD = 10.0
+    ANOMALY_THRESHOLD = 4.0
     model_config = cfg.CONFIG
 
     # -----------------------------------------------------
     # 1. Load pretrained model
     # -----------------------------------------------------
-    device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    )
+
     model_type = method_cfg.RNN_MODEL_TYPE
     model, metadata = load_trained_recurrent_model(
-        model_path=f"{cfg.DS}_{cfg.OUTPUT_TYPE}_{model_config}_{model_type.lower()}_winding_baseline.pt",
-        device=device,
+        model_path=f"{cfg.DS}_{model_config}_{model_type.lower()}_winding_baseline.pt",
+        device=cfg.DEVICE,
     )
 
     x_scaler = metadata["x_scaler"]
@@ -216,7 +214,7 @@ def main():
         x_scaler=x_scaler,
         y_scaler=y_scaler,
         checkpoint_dt_s=dt_s,
-        device=device,
+        device=cfg.DEVICE,
     )
 
     print()
@@ -226,7 +224,7 @@ def main():
     print("Mask shape:", mask_test.shape)
 
     print("RNN model loaded successfully")
-    print("Device:", device)
+    print("Device:", cfg.DEVICE)
     print("Model type:", metadata["model_type"])
     print("Model class:", metadata["model_class"])
     print("Input columns:", input_cols)
