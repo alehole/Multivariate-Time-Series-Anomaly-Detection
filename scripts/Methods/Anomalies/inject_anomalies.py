@@ -15,6 +15,8 @@ def plot_original_vs_modified(
     save_path: str | Path | None = None,
     show: bool = True,
     label_string: str = "with injected anomaly,",
+    start_idx: int | None = None,
+    end_idx: int | None = None,
 ) -> None:
     """Plot the original and modified sensor signals on the same axes."""
 
@@ -73,6 +75,29 @@ def plot_original_vs_modified(
         color="tab:orange",
         alpha=0.85,
     )
+
+    if start_idx is not None:
+        start_time = time.iloc[start_idx].tz_localize(None)
+
+        ax.axvline(
+            start_time,
+            color="black",
+            linestyle="--",
+            linewidth=1.5,
+            label="Anomaly start",
+        )
+
+    if end_idx is not None:
+        end_idx_plot = min(end_idx, len(time) - 1)
+        end_time = time.iloc[end_idx_plot].tz_localize(None)
+
+        ax.axvline(
+            end_time,
+            color="black",
+            linestyle=":",
+            linewidth=1.5,
+            label="Anomaly end",
+        )
 
     ax.set_title(f"Original and modified signal: {col}")
     ax.set_xlabel("Time")
@@ -188,8 +213,8 @@ def main():
 
     elif fault == "F4": # Gradual drift
         start_idx = 200
-        end_idx = 1000
-        final_drift = 3.0
+        end_idx = 2000
+        final_drift = 4.0
 
         data = ai.inject_drift_fault(
             df=data,
@@ -201,10 +226,10 @@ def main():
 
         data.loc[ start_idx:end_idx - 1, "synthetic_anomaly"] = True
         data.loc[start_idx:end_idx - 1,"synthetic_fault"] = "F5"
-        label_string = "Gradual drift ({final_drift:.1f} °C)"
+        label_string = f"Gradual drift ({final_drift:.1f} °C)"
 
 
-  # =====================================================
+    # =====================================================
     # PLOT
     # =====================================================
 
@@ -216,6 +241,8 @@ def main():
         save_path=plot_path,
         show=True,
         label_string=label_string,
+        start_idx=start_idx,
+        end_idx=end_idx,
     )
 
     # =====================================================
