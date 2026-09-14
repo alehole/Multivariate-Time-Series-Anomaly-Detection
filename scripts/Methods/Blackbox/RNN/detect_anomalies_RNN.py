@@ -196,7 +196,7 @@ def main():
     # 2. Load and prepare anomaly test dataset
     # -----------------------------------------------------
     data_path = Path(cfg.DATA_PATH)
-    test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F2_T1_test.csv"
+    test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T1_test.csv"
     #test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
     (
         test_data,

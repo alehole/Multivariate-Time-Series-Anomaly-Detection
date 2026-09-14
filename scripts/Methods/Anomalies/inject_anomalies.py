@@ -119,7 +119,7 @@ def main():
     col = get_raw_sensor_name(sensor)
 
     # Select ONE synthetic fault
-    fault = "F2"
+    fault = "F4"
 
     # =====================================================
     # PATHS
@@ -139,12 +139,12 @@ def main():
     original_data = data.copy(deep=True)
 
     # =====================================================
-    # INJECT SYNTHETIC FAULT
+    # INJECT SYNTHETIC ANOMALY
     # =====================================================
 
     if fault == "F1": # Noise
         start_idx = 100
-        end_idx = 600
+        end_idx = 1200
         noise_std = 1.0
 
         data = ai.inject_noise_fault(
@@ -175,7 +175,7 @@ def main():
         label_string =  f"Constant bias (+{bias:.1f} °C)"
 
     elif fault == "F3": # Stuck sensor
-        start_idx = 800
+        start_idx = 1000
         data = ai.inject_stuck_sensor(
             df=data,
             col=col,
@@ -186,22 +186,7 @@ def main():
         data.loc[start_idx:, "synthetic_fault"] = "F3"
         label_string = "Stuck sensor"
 
-    elif fault == "F4": #  Sensor dropout
-        start_idx = 100
-        end_idx = 600
-
-        data = ai.inject_sensor_dropout(
-            df=data,
-            col=col,
-            start_idx=start_idx,
-            end_idx=end_idx,
-        )
-
-        data.loc[start_idx:end_idx - 1, "synthetic_anomaly"] = True
-        data.loc[start_idx:end_idx - 1, "synthetic_fault"] = "F4"
-        label_string = "Sensor dropout"
-
-    elif fault == "F5": # Gradual drift
+    elif fault == "F4": # Gradual drift
         start_idx = 200
         end_idx = 1000
         final_drift = 3.0

@@ -56,24 +56,6 @@ def inject_stuck_sensor(
     d.iloc[start_idx:, col_idx] = value
     return d
 
-
-def inject_sensor_dropout(
-    df: pd.DataFrame,
-    col: str,
-    start_idx: int,
-    end_idx: int,
-) -> pd.DataFrame:
-
-    d = df.copy()
-    if col not in d.columns:
-        raise KeyError(f"{col} not found in dataframe")
-
-    col_idx = d.columns.get_loc(col)
-    end_idx = min(end_idx, len(d) - 1)
-    d.iloc[start_idx:end_idx + 1, col_idx] = np.nan
-    return d
-
-
 def inject_drift_fault(
     df: pd.DataFrame,
     col: str,
