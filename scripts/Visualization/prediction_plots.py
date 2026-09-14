@@ -140,7 +140,7 @@ def plot_actual_vs_predicted(
         )
 
         if i == 0:
-            ax.legend()
+            ax.legend(loc="lower right")
 
     axes[-1].set_xlabel("Time")
 

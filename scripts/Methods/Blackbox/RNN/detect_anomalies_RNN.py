@@ -168,9 +168,9 @@ def load_and_prepare_test_data(
     )
 
 def main():
-    ANOMALY_THRESHOLD = 4.0
+    ANOMALY_THRESHOLD = 3.0
     model_config = cfg.CONFIG
-
+    show_anomalies = True
     # -----------------------------------------------------
     # 1. Load pretrained model
     # -----------------------------------------------------
@@ -196,10 +196,8 @@ def main():
     # 2. Load and prepare anomaly test dataset
     # -----------------------------------------------------
     data_path = Path(cfg.DATA_PATH)
-
-    #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_generator_test_w_anomalies.csv"
-    test_path = data_path / "train_test_split" / "ds1_generator_test.csv"
-    test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
+    test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F2_T1_test.csv"
+    #test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
     (
         test_data,
         actual_df,
@@ -322,7 +320,7 @@ def main():
         residual=residuals_c,
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLD,
-        show_threshold=False,
+        show_threshold=show_anomalies,
     )
 
     # -----------------------------------------------------
