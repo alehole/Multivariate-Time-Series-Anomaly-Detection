@@ -139,22 +139,43 @@ def main():
 
     # Generic sensor name from config.py
     sensor = "T1"
-
-    # Resolve to DS-specific raw name
-    col = get_raw_sensor_name(sensor)
-
     # Select ONE synthetic fault
-    fault = "F4"
+    fault = "F1"
+
+    # Resolve to DS-specific raw sensor name
+    col = get_raw_sensor_name(sensor)
 
     # =====================================================
     # PATHS
     # =====================================================
 
-    input_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
-    output_dir = data_path/ "train_test_split"/"with_anomalies"
+    train_path = data_path/"train_test_split"/f"{cfg.DS}_generator_train.csv"
+    input_path = data_path/"train_test_split"/f"{cfg.DS}_generator_test.csv"
+    output_dir = data_path/"train_test_split"/"with_anomalies"
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir/ f"{cfg.DS}_{fault}_{sensor}_test.csv"
-    plot_path = output_dir/ f"{cfg.DS}_{fault}_{sensor}_comparison.png"
+    output_path = output_dir/f"{cfg.DS}_{fault}_{sensor}_test.csv"
+    plot_path = output_dir/f"{cfg.DS}_{fault}_{sensor}_comparison.png"
+
+    # =====================================================
+    # LOAD TRAINING DATA
+    # =====================================================
+
+    train_data = pd.read_csv(train_path)
+
+    # =====================================================
+    # ANOMALY MAGNITUDES
+    # =====================================================
+
+    sigma_sensor = pd.to_numeric(train_data[col], errors="coerce").std()
+
+    noise_std = 0.5 * sigma_sensor
+    bias = 1.0 * sigma_sensor
+    final_drift = 2.0 * sigma_sensor
+
+    print(f"Sensor standard deviation : {sigma_sensor:.3f}")
+    print(f"Noise std                 : {noise_std:.3f}")
+    print(f"Bias                      : {bias:.3f}")
+    print(f"Final drift               : {final_drift:.3f}")
 
     # =====================================================
     # LOAD ORIGINAL TEST DATA
@@ -162,6 +183,9 @@ def main():
 
     data = pd.read_csv(input_path)
     original_data = data.copy(deep=True)
+    # Ground-truth labels
+    data["synthetic_anomaly"] = False
+    data["synthetic_fault"] = "F0"
 
     # =====================================================
     # INJECT SYNTHETIC ANOMALY
@@ -170,7 +194,6 @@ def main():
     if fault == "F1": # Noise
         start_idx = 100
         end_idx = 1200
-        noise_std = 1.0
 
         data = ai.inject_noise_fault(
             df=data,
@@ -182,11 +205,11 @@ def main():
 
         data.loc[start_idx:end_idx - 1, "synthetic_anomaly"] = True
         data.loc[start_idx:end_idx - 1, "synthetic_fault"] = "F1"
-        label_string = f"Additive noise ($\\sigma={noise_std}$ °C)"
+        label_string = f"Additive noise ($\\sigma={noise_std:.2f}$ °C)"
 
     elif fault == "F2": # Bias
         start_idx = 200
-        bias = 2.0
+        end_idx = None
 
         data = ai.inject_bias_fault(
             df=data,
@@ -197,10 +220,11 @@ def main():
 
         data.loc[start_idx:, "synthetic_anomaly"] = True
         data.loc[start_idx:, "synthetic_fault"] = "F2"
-        label_string =  f"Constant bias (+{bias:.1f} °C)"
+        label_string =  f"Constant bias (+{bias:.2f} °C)"
 
     elif fault == "F3": # Stuck sensor
         start_idx = 1000
+        end_idx = None
         data = ai.inject_stuck_sensor(
             df=data,
             col=col,
@@ -214,7 +238,6 @@ def main():
     elif fault == "F4": # Gradual drift
         start_idx = 200
         end_idx = 2000
-        final_drift = 4.0
 
         data = ai.inject_drift_fault(
             df=data,
@@ -225,8 +248,8 @@ def main():
         )
 
         data.loc[ start_idx:end_idx - 1, "synthetic_anomaly"] = True
-        data.loc[start_idx:end_idx - 1,"synthetic_fault"] = "F5"
-        label_string = f"Gradual drift ({final_drift:.1f} °C)"
+        data.loc[start_idx:end_idx - 1,"synthetic_fault"] = "F4"
+        label_string = f"Gradual drift ({final_drift:.2f} °C)"
 
 
     # =====================================================
