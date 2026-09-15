@@ -66,10 +66,9 @@ def main():
     y_f1 = inject_additive_noise(y, start, end, noise_std=0.8)
     y_f2 = inject_constant_bias(y, start, bias=2.0)
     y_f3 = inject_stuck_sensor(y, start)
-    y_f4 = inject_sensor_dropout(y, start, end)
-    y_f5 = inject_gradual_drift(y, start, end, final_drift=3.0)
+    y_f4 = inject_gradual_drift(y, start, end, final_drift=3.0)
 
-    fig, axes = plt.subplots(5, 1, figsize=(10, 16), sharex=True)
+    fig, axes = plt.subplots(4, 1, figsize=(10, 16), sharex=True)
 
     plot_fault_example(
         axes[0], t, y, y_f1,
@@ -91,20 +90,17 @@ def main():
 
     plot_fault_example(
         axes[3], t, y, y_f4,
-        "F4: Sensor dropout",
+        "F4: Gradual drift",
         start, end
     )
 
-    plot_fault_example(
-        axes[4], t, y, y_f5,
-        "F5: Gradual drift",
-        start, end
+    fig.suptitle(
+        "Illustration of synthetic fault types (F1--F4)",
+        fontsize=14
     )
 
-    fig.suptitle("Illustration of synthetic fault types (F1--F5)", fontsize=14)
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     plt.show()
-
 
 if __name__ == "__main__":
     main()
