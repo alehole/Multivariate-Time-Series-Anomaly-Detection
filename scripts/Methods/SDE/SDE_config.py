@@ -5,13 +5,13 @@ from pathlib import Path
 # ---------------------------------------------------------
 # SDE model selection
 # ---------------------------------------------------------
-MODEL_OPTION = "1state"
+MODEL_OPTION = "2state"
 
 # ---------------------------------------------------------
 # SDE run configuration
 # ---------------------------------------------------------
-RUN_TOY_CHECK = True
-RUN_PL1 = True
+RUN_TOY_CHECK = False
+RUN_PL1 = False
 RUN_PL2 = False
 RUN_WILKS = False
 
@@ -121,11 +121,19 @@ else:
         for raw, generic in cfg.RENAME_MAP.items()
     }
 
-    RENAME_MAP = {
-        generic_to_raw["T1"]: "T1",     # U-winding temperature
-        generic_to_raw["T5"]: "T2",     # End-bearing temperature (intermidiate temp)
-        generic_to_raw["E1"]: "P",      # Generator power
-        generic_to_raw["T16"]: "Tref",  # FAN 1 temperature (Ambient)
-    }
+    if MODEL_OPTION == "1state":
+        RENAME_MAP = {
+            generic_to_raw["T1"]: "T1",      # U-winding temperature
+            generic_to_raw["E1"]: "P",       # Generator power
+            generic_to_raw["T16"]: "Tref",   # FAN 1 temperature
+        }
+
+    elif MODEL_OPTION == "2state":
+        RENAME_MAP = {
+            generic_to_raw["T1"]: "T1",      # U-winding temperature
+            generic_to_raw["T5"]: "T2",      # End-bearing temperature
+            generic_to_raw["E1"]: "P",       # Generator power
+            generic_to_raw["T16"]: "Tref",   # FAN 1 temperature
+        }
 
 SENSOR_COLS = list(RENAME_MAP.keys())
