@@ -17,18 +17,10 @@ from plotting import(
     plot_NIS,
     plot_full_ekf_comparison
 )
-from Visualization.prediction_plots import (
-    plot_predicted_vs_actual_inference,
-    plot_actual_vs_predicted,
-)
 
-from Visualization.residual_plots import (
-    plot_residuals_inference,
-)
 from model import simulate_model
 from ekf import run_ekf
 import numpy as np
-
 
 def save_sde_checkpoint(
     path,
@@ -76,132 +68,6 @@ def save_sde_checkpoint(
     print(f"SDE checkpoint saved to: {path}")
 
 
-def detect_residual_anomalies(
-    df,
-    x_pred,
-    threshold_c,
-    burn_in=1,
-):
-    """
-    Detect anomalies using the absolute EKF prior residual.
-
-    An observation is flagged as anomalous when
-
-        abs(measurement - prediction) > threshold_c
-
-    Missing measurements are also flagged as anomalies.
-
-    Parameters
-    ----------
-    df:
-        Dataset containing the measured output variables.
-    x_pred:
-        EKF prior state estimates with shape (N, n_states).
-    threshold_c:
-        Absolute residual threshold in degrees Celsius.
-    burn_in:
-        Number of initial predictions excluded from anomaly detection.
-
-    Returns
-    -------
-    result_df:
-        Dataframe containing measurements, predictions, residuals,
-        missing-value indicators, and anomaly flags.
-    """
-
-    x_pred = np.asarray(x_pred, dtype=float)
-    C = np.asarray(sde_cfg.C, dtype=float)
-
-    # ------------------------------------------------------------
-    # Convert predicted states to predicted measurements
-    #
-    # x_pred has shape:
-    #     (N, n_states)
-    #
-    # C has shape:
-    #     (n_measurements, n_states)
-    #
-    # Therefore, predicted_measurements has shape:
-    #     (N, n_measurements)
-    # ------------------------------------------------------------
-    predicted_measurements = x_pred @ C.T
-
-    actual_measurements = df[
-        sde_cfg.MEAS_COLS
-    ].to_numpy(dtype=float)
-
-    if predicted_measurements.shape != actual_measurements.shape:
-        raise ValueError(
-            "Predicted and measured output shapes do not match: "
-            f"predicted={predicted_measurements.shape}, "
-            f"actual={actual_measurements.shape}."
-        )
-
-    # Prediction residual:
-    #
-    #     residual = measurement - prior prediction
-    residuals = (
-        actual_measurements
-        - predicted_measurements
-    )
-
-    missing_measurements = ~np.isfinite(
-        actual_measurements
-    )
-
-    # Flag large residuals or missing measurements.
-    anomalies = (
-        np.abs(residuals) > threshold_c
-    ) | missing_measurements
-
-    # The first EKF prior is normally initialized rather than
-    # produced by a genuine one-step-ahead prediction.
-    if burn_in > 0:
-        residuals[:burn_in] = np.nan
-        anomalies[:burn_in] = False
-
-    # ------------------------------------------------------------
-    # Build results dataframe
-    # ------------------------------------------------------------
-    result_columns = [
-        col
-        for col in [
-            cfg.TS_COL,
-            *sde_cfg.MEAS_COLS,
-        ]
-        if col in df.columns
-    ]
-
-    result_df = df[result_columns].copy()
-
-    anomaly_columns = []
-
-    for j, measurement_col in enumerate(
-            sde_cfg.MEAS_COLS
-    ):
-        result_df[
-            f"{measurement_col}_predicted"
-        ] = predicted_measurements[:, j]
-
-        result_df[
-            f"{measurement_col}_residual"
-        ] = residuals[:, j]
-
-        result_df[
-            f"{measurement_col}_missing"
-        ] = missing_measurements[:, j]
-
-        # Use the same naming convention as the TCN detector.
-        anomaly_col = f"{measurement_col}_anomaly"
-
-        result_df[anomaly_col] = anomalies[:, j]
-        anomaly_columns.append(anomaly_col)
-
-    result_df["any_anomaly"] = (
-        result_df[anomaly_columns].any(axis=1)
-    )
-
-    return result_df
 
 def print_all_metrics(
     df_train,
@@ -336,6 +202,41 @@ def fit_model(df_train):
     )
     return theta_hat, result
 
+
+def evaluate_ekf(df, theta_hat, name):
+    (
+        x_hat,
+        P_cov,
+        innovations,
+        nis,
+        x_pred,
+        likelihood,
+    ) = run_ekf(
+        df=df,
+        theta=theta_hat,
+        C=sde_cfg.C,
+        Q=sde_cfg.Q,
+        R=sde_cfg.R,
+    )
+
+    report_nis(
+        name=name,
+        nis=nis,
+        dof=len(sde_cfg.MEAS_COLS),
+        likelihood_cost=likelihood,
+        burn_in=1,
+    )
+
+    return {
+        "x_hat": x_hat,
+        "P_cov": P_cov,
+        "innovations": innovations,
+        "nis": nis,
+        "x_pred": x_pred,
+        "likelihood": likelihood,
+    }
+
+
 def main():
 
     # -----------------------------------------------------
@@ -364,17 +265,16 @@ def main():
     # -----------------------------------------------------
     # Profile-likelihood analysis
     # -----------------------------------------------------
-    nll_ref = result.fun
-    print("Reference NLL:", nll_ref)
+    if sde_cfg.RUN_PL1 or sde_cfg.RUN_PL2:
+        nll_ref = result.fun
+        print("Reference NLL:", nll_ref)
 
-    ## Profile likelihood
-    pl2_results = []
-    profiles = None
-    if sde_cfg.RUN_PL2:
-        pl2_results.append(run_pl2("C1", "R1", df_train, theta_hat, nll_ref))
-        pl2_results.append(run_pl2("C2", "R2", df_train, theta_hat, nll_ref))
-    if sde_cfg.RUN_PL1:
-        profiles = run_pl1(df_train, theta_hat, nll_ref)
+        if sde_cfg.RUN_PL1:
+            run_pl1( df_train, theta_hat, nll_ref)
+
+        if sde_cfg.RUN_PL2:
+            run_pl2("C1","R1", df_train, theta_hat, nll_ref)
+            run_pl2("C2","R2", df_train, theta_hat, nll_ref)
 
     # ------------------------------------------------------------
     # Open-loop simulation (no measurement correction)
@@ -389,54 +289,16 @@ def main():
     # EKF evaluation
     # -----------------------------------------------------
 
-    (
-        x_hat_train,
-        P_cov_train,
-        innov_train,
-        nis_train,
-        x_pred_train,
-        likelihood_train,
-    ) = run_ekf(
-        df=df_train,
-        theta=theta_hat,
-        C=sde_cfg.C,
-        Q=sde_cfg.Q,
-        R=sde_cfg.R,
+    train_ekf = evaluate_ekf(
+        df_train,
+        theta_hat,
+        "training",
     )
 
-    # The NIS degrees of freedom equal the number of measurements.
-    dof = len(sde_cfg.MEAS_COLS)
-
-    report_nis(
-        name="training",
-        nis=nis_train,
-        dof=dof,
-        likelihood_cost=likelihood_train,
-        burn_in=1,
-    )
-
-    # Run the same fitted model on the independent test dataset.
-    (
-        x_hat_test,
-        P_cov_test,
-        innov_test,
-        nis_test,
-        x_pred_test,
-        likelihood_test,
-    ) = run_ekf(
-        df=df_test,
-        theta=theta_hat,
-        C=sde_cfg.C,
-        Q=sde_cfg.Q,
-        R=sde_cfg.R,
-    )
-
-    report_nis(
-        name="test",
-        nis=nis_test,
-        dof=dof,
-        likelihood_cost=likelihood_test,
-        burn_in=1,
+    test_ekf = evaluate_ekf(
+        df_test,
+        theta_hat,
+        "test",
     )
     # ------------------------------------------------------------
     # Evaluate model performance:
@@ -449,144 +311,68 @@ def main():
         df_test,
         x_sim_train,
         x_sim_test,
-        x_pred_train,
-        x_pred_test,
-        x_hat_train,
-        x_hat_test,
+        train_ekf["x_pred"],
+        test_ekf["x_pred"],
+        train_ekf["x_hat"],
+        test_ekf["x_hat"],
     )
 
-    # ------------------------------------------------------------
-    # Plot estimated temperatures and uncertainty
-    # ------------------------------------------------------------
-    plot_results(df_train, x_hat_train, P_cov_train, "Training EKF")
-    plot_results(df_test, x_hat_test, P_cov_test, "Testing EKF")
-    # ------------------------------------------------------------
-    # Plot innovation residuals
-    # ------------------------------------------------------------
-    plot_innovations(df_train, innov_train, "Training innovations")
-    plot_innovations(df_test, innov_test, "Testing innovations")
-    # ------------------------------------------------------------
-    # Plot NIS/Mahalanobis distance for anomaly detection
-    # ------------------------------------------------------------
-    plot_NIS(df_train, nis_train, "Training anomaly score")
-    plot_NIS(df_test, nis_test, "Testing anomaly score")
+    plot_results(
+        df_train,
+        train_ekf["x_hat"],
+        train_ekf["P_cov"],
+        "Training EKF",
+    )
 
-    # ------------------------------------------------------------
-    # Compare:
-    #   - Measured temperatures
-    #   - Open-loop grey-box simulation
-    #   - EKF prior estimate
-    #   - EKF posterior estimate
-    # ------------------------------------------------------------
+    plot_results(
+        df_test,
+        test_ekf["x_hat"],
+        test_ekf["P_cov"],
+        "Testing EKF",
+    )
+
+    plot_innovations(
+        df_train,
+        train_ekf["innovations"],
+        "Training innovations",
+    )
+
+    plot_innovations(
+        df_test,
+        test_ekf["innovations"],
+        "Testing innovations",
+    )
+
+    plot_NIS(
+        df_train,
+        train_ekf["nis"],
+        "Training NIS",
+    )
+
+    plot_NIS(
+        df_test,
+        test_ekf["nis"],
+        "Testing NIS",
+    )
+
     plot_full_ekf_comparison(
         df_train,
         x_sim_train,
-        x_pred_train,
-        x_hat_train,
-        title="Training: Model vs EKF"
+        train_ekf["x_pred"],
+        train_ekf["x_hat"],
+        title="Training: Model vs EKF",
     )
 
     plot_full_ekf_comparison(
         df_test,
         x_sim_test,
-        x_pred_test,
-        x_hat_test,
-        title="Testing: Model vs EKF"
+        test_ekf["x_pred"],
+        test_ekf["x_hat"],
+        title="Testing: Model vs EKF",
     )
 
     plot_residuals_vs_time(df_train, x_sim_train, df_test, x_sim_test,
                            window="6h", title="Open-loop residual")
-    # ------------------------------------------------------------
-    # Residual-threshold anomaly detection
-    # ------------------------------------------------------------
-    sde_anomaly_results = detect_residual_anomalies(
-        df=df_test,
-        x_pred=x_pred_test,
-        threshold_c=sde_cfg.RESIDUAL_ANOMALY_THRESHOLD,
-        burn_in=1,
-    )
-
-    n_anomalies = int(
-        sde_anomaly_results["any_anomaly"].sum()
-    )
-
-    print()
-    print(
-        "Residual anomaly threshold:",
-        f"{sde_cfg.RESIDUAL_ANOMALY_THRESHOLD:.2f} °C",
-    )
-    print(
-        "Detected residual anomalies:",
-        n_anomalies,
-    )
-    print(
-        "Anomaly percentage:",
-        f"{100 * n_anomalies / len(sde_anomaly_results):.3f}%",
-    )
-
-    # ------------------------------------------------------------
-    # Save anomaly results
-    # ------------------------------------------------------------
-    data_path = Path(cfg.DATA_PATH)
-    result_path = data_path/"results"/"sde_anomaly_results.csv"
-
-    result_path.parent.mkdir(parents=True, exist_ok=True)
-
-    sde_anomaly_results.to_csv(result_path, index=False)
-
-    print(f"SDE anomaly results saved to: {result_path}")
-
-    # ------------------------------------------------------------
-    # Prepare EKF-prior predictions for plotting
-    # ------------------------------------------------------------
-    target_cols = list(sde_cfg.MEAS_COLS)
-
-    predicted_test = (
-            np.asarray(x_pred_test, dtype=float)
-            @ np.asarray(sde_cfg.C, dtype=float).T
-    )
-
-    actual_df = df_test[
-        [cfg.TS_COL, *target_cols]
-    ].copy()
-
-    actual_test = actual_df[
-        target_cols
-    ].to_numpy(dtype=float)
-
-    residuals_test = actual_test - predicted_test
-
-    # The first prior estimate is initialized rather than predicted.
-    residuals_test[0] = np.nan
-
-    # ------------------------------------------------------------
-    # Plot residuals and detected anomalies
-    # ------------------------------------------------------------
-    plot_residuals_inference(
-        data=sde_anomaly_results,
-        residual=residuals_test,
-        target_cols=target_cols,
-        anomaly_threshold=sde_cfg.RESIDUAL_ANOMALY_THRESHOLD,
-    )
-
-    # ------------------------------------------------------------
-    # Plot measurements and EKF-prior predictions
-    # ------------------------------------------------------------
-    plot_actual_vs_predicted(
-        actual_df=actual_df,
-        predicted=predicted_test,
-        target_cols=target_cols,
-        anomaly_threshold=sde_cfg.RESIDUAL_ANOMALY_THRESHOLD,
-    )
-
-    # ------------------------------------------------------------
-    # Plot predicted versus measured values
-    # ------------------------------------------------------------
-    plot_predicted_vs_actual_inference(
-        actual_df=actual_df,
-        predicted=predicted_test,
-        target_cols=target_cols,
-    )
 
     if sde_cfg.RUN_WILKS:
         theta_hat_reduced = theta_hat # Placeholders
