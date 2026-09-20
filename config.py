@@ -27,11 +27,13 @@ TS_COL = "Created"
 
 DS = "ds1"
 CONFIG = "MC4"
+
+
 # ---------------------------------------------------------
 # Data model configuration shared by all methods
 # ---------------------------------------------------------
-if DS=="ds1":
-    RENAME_MAP = {
+DATASET_RENAME_MAPS = {
+    "ds1": {
         "AE PORT GEN.U-WINDING TEMP.": "T1",
         "AE PORT GEN.V-WINDING TEMP.": "T2",
         "AE PORT GEN.W-WINDING TEMP.": "T3",
@@ -49,9 +51,9 @@ if DS=="ds1":
         "AE PORT CYL.4 EXH.GAS TEMP.": "T12",
         "AE PORT CYL.5 EXH.GAS TEMP.": "T13",
         "AE PORT CYL.6 EXH.GAS TEMP.": "T14",
-    }
-elif DS=="ds2":
-    RENAME_MAP = {
+    },
+
+    "ds2": {
         "AE STBD GEN.U-WINDING TEMP.": "T1",
         "AE STBD GEN.V-WINDING TEMP.": "T2",
         "AE STBD GEN.W-WINDING TEMP.": "T3",
@@ -69,8 +71,11 @@ elif DS=="ds2":
         "AE STBD CYL.4 EXH.GAS TEMP.": "T12",
         "AE STBD CYL.5 EXH.GAS TEMP.": "T13",
         "AE STBD CYL.6 EXH.GAS TEMP.": "T14",
-    }
+    },
+}
 
+RENAME_MAP = DATASET_RENAME_MAPS[DS]
+SENSOR_COLS = list(RENAME_MAP.keys())
 # ---------------------------------------------------------
 # Global model configurations
 # ---------------------------------------------------------
@@ -99,4 +104,11 @@ MODEL_CONFIGS = {
 
 INPUT_COLS = MODEL_CONFIGS[CONFIG]["input_cols"]
 TARGET_COLS = MODEL_CONFIGS[CONFIG]["target_cols"]
-SENSOR_COLS = list(RENAME_MAP.keys())
+
+
+# ---------------------------------------------------------
+# Common train/validation/test paths
+# ---------------------------------------------------------
+TRAIN_PATH = DATA_PATH / "train_test_split" / f"{DS}_generator_train.csv"
+VAL_PATH = DATA_PATH / "train_test_split" / f"{DS}_generator_val.csv"
+TEST_PATH = DATA_PATH / "train_test_split" / f"{DS}_generator_test.csv"

@@ -15,7 +15,7 @@ from model import f_discrete_implicit
 DT_SECONDS = 60.0
 SIMULATION_HOURS = 72.0
 MEASUREMENT_NOISE_STD = 0.5
-
+c
 def main():
     USE_REAL_POWER = True
     OUTPUT_DIR = Path(cfg.DATA_PATH) / "toy_sim"

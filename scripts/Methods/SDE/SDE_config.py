@@ -6,6 +6,20 @@ from pathlib import Path
 # SDE model selection
 # ---------------------------------------------------------
 MODEL_OPTION = "1state"
+
+# ---------------------------------------------------------
+# SDE run configuration
+# ---------------------------------------------------------
+RUN_TOY_CHECK = True
+RUN_PL1 = False
+RUN_PL2 = False
+RUN_WILKS = False
+
+RESIDUAL_ANOMALY_THRESHOLD = 1.95  # [°C]
+MAXITER = 2000
+NIS_THRESHOLD_PERCENTILE = 0.995
+
+
 # ---------------------------------------------------------
 # Toy-data configuration
 # ---------------------------------------------------------
@@ -14,33 +28,10 @@ TOY_THETA_TRUE = np.array([
     0.05,       # R1 [°C/kW]
 ])
 
-CSV_FULL = "toy_generator_1state.csv"
-CSV_TRAIN = "toy_generator_1state_train.csv"
-CSV_TEST = "toy_generator_1state_test.csv"
 
 # ---------------------------------------------------------
-# SDE run configuration
+# SDE thermal-model configurations
 # ---------------------------------------------------------
-RUN_TOY_CHECK = True
-RUN_PL1 = True
-RUN_PL2 = False
-RUN_MCMC = False
-RUN_WILKS = False
-RESIDUAL_ANOMALY_THRESHOLD = 1.95  # [°C]
-MAXITER = 2000
-NIS_THRESHOLD_PERCENTILE = 0.995
-
-data_path = Path(cfg.DATA_PATH)
-train_path = data_path / "train_test_split/ds1_generator_train.csv"
-val_path = data_path / "train_test_split/ds1_generator_val.csv"
-test_path = data_path / "train_test_split/ds1_generator_test.csv"
-
-if RUN_TOY_CHECK:
-    CSV_TRAIN = cfg.DATA_PATH /"toy_sim/toy_generator_train.csv"
-    CSV_TEST = cfg.DATA_PATH / "toy_sim/toy_generator_test.csv"
-else:
-    CSV_TRAIN = cfg.DATA_PATH / "train_test_split" / "ds1_generator_train.csv"
-    CSV_TEST = cfg.DATA_PATH / "train_test_split"/ "ds1_generator_test.csv"
 
 MODEL_CONFIGS = {
     "1state": {
@@ -96,8 +87,21 @@ Q = selected["Q"]
 R = selected["R"]
 C = selected["C"]
 
+
 # ---------------------------------------------------------
-# Dataset sensor mapping
+# Dataset paths
+# ---------------------------------------------------------
+
+if RUN_TOY_CHECK:
+    CSV_TRAIN = cfg.DATA_PATH / "toy_sim" / "toy_generator_train.csv"
+    CSV_TEST = cfg.DATA_PATH / "toy_sim" / "toy_generator_test.csv"
+else:
+    CSV_TRAIN = cfg.TRAIN_PATH
+    CSV_TEST = cfg.TEST_PATH
+
+
+# ---------------------------------------------------------
+# SDE-specific variable mapping
 # ---------------------------------------------------------
 if RUN_TOY_CHECK:
     RENAME_MAP = {
@@ -107,10 +111,15 @@ if RUN_TOY_CHECK:
     }
 
 else:
+    generic_to_raw = {
+        generic: raw
+        for raw, generic in cfg.RENAME_MAP.items()
+    }
+
     RENAME_MAP = {
-        "AE PORT GEN.U-WINDING TEMP.": "T1",
-        "POWER_kW": "P",
-        "AE PORT HT FW OUTLET TEMP.": "Tref",
+        generic_to_raw["T1"]: "T1",
+        generic_to_raw["E1"]: "P",
+        generic_to_raw["T7"]: "Tref",
     }
 
 SENSOR_COLS = list(RENAME_MAP.keys())
