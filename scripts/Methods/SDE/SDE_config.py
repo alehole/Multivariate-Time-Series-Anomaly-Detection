@@ -10,8 +10,8 @@ MODEL_OPTION = "1state"
 # ---------------------------------------------------------
 # SDE run configuration
 # ---------------------------------------------------------
-RUN_TOY_CHECK = False
-RUN_PL1 = False
+RUN_TOY_CHECK = True
+RUN_PL1 = True
 RUN_PL2 = False
 RUN_WILKS = False
 
@@ -39,8 +39,6 @@ MODEL_CONFIGS = {
         "input_cols": ["P", "Tref"],
         "parameter_names": ["C1", "R1"],
         "theta0": np.array([2e5, 0.04]),
-       # "lower_bound": np.array([1.0e4, 0.005]),
-       # "upper_bound": np.array([1.0e6, 0.5]),
         "lower_bound": np.array([1.0e4, 0.005]),
         "upper_bound": np.array([1.0e7, 1.0]),
         "Q": np.diag([0.0001]),
@@ -50,7 +48,7 @@ MODEL_CONFIGS = {
 
     "2state": {
         "state_cols": ["T1", "T2"],
-        "meas_cols": ["T1"],
+        "meas_cols": ["T1", "T2"],
         "input_cols": ["P", "Tref"],
         "parameter_names": ["C1", "C2", "R1", "R2"],
         "theta0": np.array([
@@ -71,9 +69,15 @@ MODEL_CONFIGS = {
             0.5,
             1.0,
         ]),
-        "Q": np.diag([0.0001, 0.0001]),
-        "R": np.diag([0.5**2]),
-        "C": np.array([[1.0, 0.0]]),
+        "Q": np.diag([
+            0.0001,
+            0.0001,
+        ]),
+        "R": np.diag([
+            0.5 ** 2,  # U-winding sensor
+            0.5 ** 2,  # end-bearing sensor
+        ]),
+        "C": np.eye(2),
     },
 }
 selected = MODEL_CONFIGS[MODEL_OPTION]
@@ -118,9 +122,10 @@ else:
     }
 
     RENAME_MAP = {
-        generic_to_raw["T1"]: "T1",
-        generic_to_raw["E1"]: "P",
-        generic_to_raw["T17"]: "Tref",
+        generic_to_raw["T1"]: "T1",     # U-winding temperature
+        generic_to_raw["T5"]: "T2",     # End-bearing temperature (intermidiate temp)
+        generic_to_raw["E1"]: "P",      # Generator power
+        generic_to_raw["T16"]: "Tref",  # FAN 1 temperature (Ambient)
     }
 
 SENSOR_COLS = list(RENAME_MAP.keys())
