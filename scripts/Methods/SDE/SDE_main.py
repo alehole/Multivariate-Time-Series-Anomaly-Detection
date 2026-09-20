@@ -524,7 +524,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-    if sde_cfg.RUN_PL1 or sde_cfg.RUN_PL2 or sde_cfg.RUN_MCMC:
+    if sde_cfg.RUN_PL1 or sde_cfg.RUN_PL2:
         notify_phone(
             "Pipeline has finished.",
             title="EKF finished",
