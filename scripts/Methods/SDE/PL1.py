@@ -42,8 +42,8 @@ def profile_likelihood_1d(df, theta_hat, nll_ref,
 
     for i in range(n):
         center = theta_hat[i]
-        span = 0.03 * center  # ±2% around the optimum
-        #span = 0.5 * center  # ±2% around the optimum
+        span = 0.03 * center  # ±3% around the optimum
+        #span = 0.5 * center  # ±50% around the optimum
         grid = np.linspace(max(lo[i], center - span),
                            min(hi[i], center + span), n_points)
         rel = np.full(n_points, np.nan)

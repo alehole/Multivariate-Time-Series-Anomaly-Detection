@@ -37,7 +37,7 @@ def main():
     # -----------------------------------------------------
     # 1. Select fitted SDE and anomaly dataset
     # -----------------------------------------------------
-    model_path = Path(cfg.DATA_PATH)/"models"/"ds1_1state_sde.pkl"
+    model_path = Path(cfg.DATA_PATH)/"models"/"ds1_2state_sde.pkl"
     data_path = Path(cfg.DATA_PATH)
     test_path = data_path / "train_test_split/ds1_generator_test.csv"
 
@@ -179,30 +179,34 @@ def main():
     # -----------------------------------------------------
     # 10. Plots
     # -----------------------------------------------------
+    target_cols = ["T1"]
+    target_idx = [meas_cols.index("T1")]
+    predicted_T1 = predicted[:, target_idx]
+    residuals_T1 = residuals[:, target_idx]
+
+    actual_df_T1 = result_df[
+        [cfg.TS_COL, "T1"]
+    ].copy()
 
     plot_residuals_inference(
         data=result_df,
-        residual=residuals,
-        target_cols=meas_cols,
+        residual=residuals_T1,
+        target_cols=["T1"],
         anomaly_threshold=threshold,
         show_threshold=True,
     )
 
-    actual_df = result_df[
-        [cfg.TS_COL, *meas_cols]
-    ]
-
     plot_actual_vs_predicted(
-        actual_df=actual_df,
-        predicted=predicted,
-        target_cols=meas_cols,
+        actual_df=actual_df_T1,
+        predicted=predicted_T1,
+        target_cols=["T1"],
         anomaly_threshold=threshold,
     )
 
     plot_predicted_vs_actual_inference(
-        actual_df=actual_df,
-        predicted=predicted,
-        target_cols=meas_cols,
+        actual_df=actual_df_T1,
+        predicted=predicted_T1,
+        target_cols=["T1"],
     )
 
     # Open-loop simulation
@@ -218,8 +222,6 @@ def main():
         x_hat,
         title="Testing: Model vs EKF",
     )
-
-
 
 
 if __name__ == "__main__":

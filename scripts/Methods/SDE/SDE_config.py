@@ -52,10 +52,10 @@ MODEL_CONFIGS = {
         "input_cols": ["P", "Tref"],
         "parameter_names": ["C1", "C2", "R1", "R2"],
         "theta0": np.array([
-            1.0e5,
-            5.0e5,
-            0.04,
-            0.10,
+            1.0e6,  # C1
+            1.0e6,  # C2
+            0.02,  # R1
+            0.02,  # R2
         ]),
         "lower_bound": np.array([
             1.0e4,
@@ -64,9 +64,9 @@ MODEL_CONFIGS = {
             0.005,
         ]),
         "upper_bound": np.array([
-            1.0e7,
             1.0e8,
-            0.5,
+            1.0e8,
+            1.0,
             1.0,
         ]),
         "Q": np.diag([
@@ -131,7 +131,7 @@ else:
     elif MODEL_OPTION == "2state":
         RENAME_MAP = {
             generic_to_raw["T1"]: "T1",      # U-winding temperature
-            generic_to_raw["T5"]: "T2",      # End-bearing temperature
+            generic_to_raw["T6"]: "T2",      # LUB.OIL TEMP.
             generic_to_raw["E1"]: "P",       # Generator power
             generic_to_raw["T16"]: "Tref",   # FAN 1 temperature
         }

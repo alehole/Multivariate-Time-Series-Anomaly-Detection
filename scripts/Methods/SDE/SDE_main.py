@@ -281,43 +281,48 @@ def report_nis(
     print(f"NIS/DOF ratio:     {nis_ratio:.2f}")
     print(f"Likelihood cost:   {likelihood_cost:.3f}")
 
-def main():
 
+
+def load_datasets():
     data_path = Path(cfg.DATA_PATH)
-    # -----------------------------------------------------
-    # Load training and testing datasets
-    # -----------------------------------------------------
+
     if sde_cfg.RUN_TOY_CHECK:
         train_path = data_path / "toy_sim/toy_generator_train.csv"
-        test_path  = data_path / "toy_sim/toy_generator_test.csv"
+        test_path = data_path / "toy_sim/toy_generator_test.csv"
     else:
         train_path = data_path / "train_test_split/ds1_generator_train.csv"
-        val_path   = data_path / "train_test_split/ds1_generator_val.csv"
-        test_path  = data_path / "train_test_split/ds1_generator_test.csv"
+        test_path = data_path / "train_test_split/ds1_generator_test.csv"
 
-    df_train = load_data(train_path, cfg.TS_COL, sde_cfg.SENSOR_COLS, sde_cfg.RENAME_MAP)
-    df_test = load_data(test_path, cfg.TS_COL, sde_cfg.SENSOR_COLS, sde_cfg.RENAME_MAP)
-    print(f"Training observations: {len(df_train):,}")
-    print(f"Test observations:     {len(df_test):,}")
-    print(f"Selected model:        {sde_cfg.MODEL_OPTION}")
-
-    # -----------------------------------------------------
-    # Estimate grey-box model parameters from training
-    # dataset by minimizing the EKF likelihood cost.
-    # -----------------------------------------------------
-    theta_hat, result = estimate_parameters_mle(df_train)
-
-    save_sde_checkpoint(
-        path=Path(cfg.DATA_PATH)/ "models"/f"{cfg.DS}_{sde_cfg.MODEL_OPTION}_sde.pkl",
-        theta_hat=theta_hat,
-        df_train=df_train,
+    df_train = load_data(
+        train_path,
+        cfg.TS_COL,
+        sde_cfg.SENSOR_COLS,
+        sde_cfg.RENAME_MAP,
     )
 
-    # -----------------------------------------------------
-    # Report estimated physical parameters
-    # -----------------------------------------------------
+    df_test = load_data(
+        test_path,
+        cfg.TS_COL,
+        sde_cfg.SENSOR_COLS,
+        sde_cfg.RENAME_MAP,
+    )
+
+    return df_train, df_test
+
+def fit_model(df_train):
+    theta_hat, result = estimate_parameters_mle(df_train)
+
+    if sde_cfg.RUN_TOY_CHECK:
+        # For the toy, compare against known truth
+        print("\nRecovery check (est / true):")
+        for name, est, true in zip(sde_cfg.PARAMETER_NAMES, theta_hat, sde_cfg.TOY_THETA_TRUE):
+            print(f"  {name}: {est:.5g} vs {true:.5g}  ({100 * est / true:.3f}%)")
+
     print("\nEstimated parameters:")
-    for name, value in zip(sde_cfg.PARAMETER_NAMES, theta_hat):
+    for name, value in zip(
+        sde_cfg.PARAMETER_NAMES,
+        theta_hat,
+    ):
         print(f"{name}: {value:.6g}")
 
     print("\nOptimization diagnostics:")
@@ -325,13 +330,36 @@ def main():
     print("Message:", result.message)
     print("Final likelihood cost:", result.fun)
     print("Iterations:", result.get("nit", "n/a"))
-    print("Function evaluations:", result.get("nfev", "n/a"),
+    print(
+        "Function evaluations:",
+        result.get("nfev", "n/a"),
     )
-    if sde_cfg.RUN_TOY_CHECK:
-        # For the toy, compare against known truth
-        print("\nRecovery check (est / true):")
-        for name, est, true in zip(sde_cfg.PARAMETER_NAMES, theta_hat, sde_cfg.TOY_THETA_TRUE):
-            print(f"  {name}: {est:.5g} vs {true:.5g}  ({100 * est / true:.3f}%)")
+    return theta_hat, result
+
+def main():
+
+    # -----------------------------------------------------
+    # Load training and testing datasets
+    # -----------------------------------------------------
+    df_train, df_test = load_datasets()
+
+    print(f"Training observations: {len(df_train):,}")
+    print(f"Test observations:     {len(df_test):,}")
+    print(f"Selected model:        {sde_cfg.MODEL_OPTION}")
+
+    # -----------------------------------------------------
+    # Fit parameters
+    # -----------------------------------------------------
+    theta_hat, result = fit_model(df_train)
+
+    # -----------------------------------------------------
+    # Save fitted model
+    # -----------------------------------------------------
+    save_sde_checkpoint(
+        path=Path(cfg.DATA_PATH)/"models"/f"{cfg.DS}_{sde_cfg.MODEL_OPTION}_sde.pkl",
+        theta_hat=theta_hat,
+        df_train=df_train,
+    )
 
     # -----------------------------------------------------
     # Profile-likelihood analysis
@@ -344,6 +372,7 @@ def main():
     profiles = None
     if sde_cfg.RUN_PL2:
         pl2_results.append(run_pl2("C1", "R1", df_train, theta_hat, nll_ref))
+        pl2_results.append(run_pl2("C2", "R2", df_train, theta_hat, nll_ref))
     if sde_cfg.RUN_PL1:
         profiles = run_pl1(df_train, theta_hat, nll_ref)
 
@@ -356,11 +385,10 @@ def main():
     plot_simulated_vs_actual(df_train, x_sim_train, "Training")
     plot_simulated_vs_actual(df_test, x_sim_test, "Testing")
 
-    # ------------------------------------------------------------
-    # Extended Kalman filter state estimation
-    # ------------------------------------------------------------
+    # -----------------------------------------------------
+    # EKF evaluation
+    # -----------------------------------------------------
 
-    # Run the fitted EKF on the training dataset.
     (
         x_hat_train,
         P_cov_train,
@@ -499,21 +527,12 @@ def main():
     # ------------------------------------------------------------
     # Save anomaly results
     # ------------------------------------------------------------
-    result_path = (
-            data_path
-            / "results"
-            / "sde_anomaly_results.csv"
-    )
+    data_path = Path(cfg.DATA_PATH)
+    result_path = data_path/"results"/"sde_anomaly_results.csv"
 
-    result_path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    result_path.parent.mkdir(parents=True, exist_ok=True)
 
-    sde_anomaly_results.to_csv(
-        result_path,
-        index=False,
-    )
+    sde_anomaly_results.to_csv(result_path, index=False)
 
     print(f"SDE anomaly results saved to: {result_path}")
 
