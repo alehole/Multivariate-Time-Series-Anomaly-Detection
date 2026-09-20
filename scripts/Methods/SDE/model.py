@@ -6,9 +6,23 @@ import SDE_config as sde_cfg
 
 from thermal_models import f_continuous as evaluate_continuous_model
 
-def f_continuous(x, u, theta):
+def f_continuous(
+    x,
+    u,
+    theta,
+    model_option=None,
+):
     """Evaluate the selected continuous-time thermal model."""
-    return evaluate_continuous_model(x=x, u=u,theta=theta, model_option=sde_cfg.MODEL_OPTION )
+
+    if model_option is None:
+        model_option = sde_cfg.MODEL_OPTION
+
+    return evaluate_continuous_model(
+        x=x,
+        u=u,
+        theta=theta,
+        model_option=model_option,
+    )
 
 
 def f_discrete_explicit(x, u, theta, dt):
@@ -17,15 +31,42 @@ def f_discrete_explicit(x, u, theta, dt):
     return x + dt * f_continuous(x=x, u=u,theta=theta)
 
 # Discretize the continuous-time state equations using Backward Euler integration
-def f_discrete_implicit(x, u, theta, dt):
+def f_discrete_implicit(
+    x,
+    u,
+    theta,
+    dt,
+    model_option=None,
+):
     n = len(x)
-    f0 = f_continuous(np.zeros(n), u, theta)     # constant/input part
+
+    f0 = f_continuous(
+        np.zeros(n),
+        u,
+        theta,
+        model_option=model_option,
+    )
+
     A = np.zeros((n, n))
+
     for i in range(n):
         e = np.zeros(n)
         e[i] = 1.0
-        A[:, i] = f_continuous(e, u, theta) - f0
-    return np.linalg.solve(np.eye(n) - dt * A, x + dt * f0)
+
+        A[:, i] = (
+            f_continuous(
+                e,
+                u,
+                theta,
+                model_option=model_option,
+            )
+            - f0
+        )
+
+    return np.linalg.solve(
+        np.eye(n) - dt * A,
+        x + dt * f0,
+    )
 
 def simulate_model(df, theta):
     """Simulate the selected SDE model over a dataframe."""

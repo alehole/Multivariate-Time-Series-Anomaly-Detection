@@ -3,21 +3,51 @@ from model import f_discrete_implicit
 from SDE_config import STATE_COLS, MEAS_COLS, INPUT_COLS
 
 
-def jacobian_F(x, u_k, theta, dt, eps=1e-5):
+def jacobian_F(
+    x,
+    u_k,
+    theta,
+    dt,
+    model_option=None,
+    eps=1e-5,
+):
     n = len(x)
     F = np.zeros((n, n))
-    fx = f_discrete_implicit(x, u_k, theta, dt)
+
+    fx = f_discrete_implicit(
+        x,
+        u_k,
+        theta,
+        dt,
+        model_option=model_option,
+    )
 
     for i in range(n):
         x_eps = x.copy()
         x_eps[i] += eps
-        fx_eps = f_discrete_implicit(x_eps, u_k, theta, dt)
+        fx_eps = f_discrete_implicit(
+            x_eps,
+            u_k,
+            theta,
+            dt,
+            model_option=model_option,
+        )
         F[:, i] = (fx_eps - fx) / eps
 
     return F
 
 
-def run_ekf(df, theta, C, Q, R):
+def run_ekf(
+    df,
+    theta,
+    C,
+    Q,
+    R,
+    state_cols=None,
+    meas_cols=None,
+    input_cols=None,
+    model_option=None,
+):
     """
         ----------------------------------
         theta       : model parameter vector θ, e.g. θ = [Cw, Rg]
@@ -38,15 +68,22 @@ def run_ekf(df, theta, C, Q, R):
         neg_log_lik : negative log-likelihood cost,
                       g(θ) = Σ[ε_kᵀ S_k⁻¹ ε_k + log(det(S_k))]
     """
+    if state_cols is None:
+        state_cols = STATE_COLS
 
+    if meas_cols is None:
+        meas_cols = MEAS_COLS
+
+    if input_cols is None:
+        input_cols = INPUT_COLS
 
     dt = df["Created"].diff().dt.total_seconds().median()
 
-    Y = df[MEAS_COLS].values
-    U = df[INPUT_COLS].values
+    Y = df[meas_cols].values
+    U = df[input_cols].values
 
-    n_states = len(STATE_COLS)
-    n_meas = len(MEAS_COLS)
+    n_states = len(state_cols)
+    n_meas = len(meas_cols)
     N = len(df)
 
     x_pred_hist = np.zeros((N, n_states))
@@ -55,7 +92,7 @@ def run_ekf(df, theta, C, Q, R):
     innovations = np.zeros((N, n_meas))
     NIS = np.zeros(N)
 
-    x_hat[0] = df[STATE_COLS].iloc[0].values
+    x_hat[0] = df[state_cols].iloc[0].values
     x_pred_hist[0] = x_hat[0]
     P_cov[0] = np.eye(n_states)
 
@@ -68,12 +105,25 @@ def run_ekf(df, theta, C, Q, R):
         # 1. PREDICTION
         # =====================================================
 
-        x_pred = f_discrete_implicit(x_hat[k], u_k, theta, dt) # Prediction
+        # Prediction
+        x_pred = f_discrete_implicit(
+            x_hat[k],
+            u_k,
+            theta,
+            dt,
+            model_option=model_option,
+        )
         x_pred_hist[k + 1] = x_pred
 
         # Linearize the nonlinear transition model:
         # F_k = ∂f/∂x
-        F = jacobian_F(x_hat[k], u_k, theta, dt)
+        F = jacobian_F(
+            x_hat[k],
+            u_k,
+            theta,
+            dt,
+            model_option=model_option,
+        )
 
         # Predict the state covariance:
         # P_{k+1|k} = F_k P_{k|k} F_kᵀ + Q

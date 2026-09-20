@@ -1,5 +1,7 @@
 from misc.data import load_data
 from pathlib import Path
+import pickle
+import pandas as pd
 import config as cfg
 import SDE_config as sde_cfg
 from notify_phone import notify_phone
@@ -26,6 +28,54 @@ from Visualization.residual_plots import (
 from model import simulate_model
 from ekf import run_ekf
 import numpy as np
+
+
+def save_sde_checkpoint(
+    path,
+    theta_hat,
+    df_train,
+):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    timestamps = pd.to_datetime(
+        df_train[cfg.TS_COL],
+        errors="coerce",
+        utc=True,
+    )
+
+    dt_s = timestamps.diff().dt.total_seconds().median()
+
+    checkpoint = {
+        "model_option": sde_cfg.MODEL_OPTION,
+
+        "theta_hat": theta_hat,
+
+        "state_cols": sde_cfg.STATE_COLS,
+        "meas_cols": sde_cfg.MEAS_COLS,
+        "input_cols": sde_cfg.INPUT_COLS,
+
+        "parameter_names": sde_cfg.PARAMETER_NAMES,
+
+        "Q": sde_cfg.Q,
+        "R": sde_cfg.R,
+        "C": sde_cfg.C,
+
+        "rename_map": sde_cfg.RENAME_MAP,
+        "sensor_cols": sde_cfg.SENSOR_COLS,
+
+        "dt_s": dt_s,
+
+        "anomaly_threshold":
+            sde_cfg.RESIDUAL_ANOMALY_THRESHOLD,
+    }
+
+    with open(path, "wb") as f:
+        pickle.dump(checkpoint, f)
+
+    print(f"SDE checkpoint saved to: {path}")
+
+
 def detect_residual_anomalies(
     df,
     x_pred,
@@ -256,6 +306,13 @@ def main():
     # dataset by minimizing the EKF likelihood cost.
     # -----------------------------------------------------
     theta_hat, result = estimate_parameters_mle(df_train)
+
+    save_sde_checkpoint(
+        path=Path(cfg.DATA_PATH)/ "models"/f"{cfg.DS}_{sde_cfg.MODEL_OPTION}_sde.pkl",
+        theta_hat=theta_hat,
+        df_train=df_train,
+    )
+
     # -----------------------------------------------------
     # Report estimated physical parameters
     # -----------------------------------------------------
@@ -521,7 +578,6 @@ def main():
         LR, p = wilks_likelihood_ratio_test(nll_A, nll_B, 1)
         verdict = "keep the extra parameter" if p < 0.05 else "reduced model is adequate"
         print(f"Wilks: LR={LR:.3f}, p={p:.4f} -> {verdict}")
-
 
 if __name__ == "__main__":
     main()
