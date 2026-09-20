@@ -152,22 +152,14 @@ def main():
     ds1_val_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{1}_generator_val.csv"
     ds1_test_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{1}_generator_test.csv"
 
-    if False:
-        split_csv_train_test(
-            input_csv=ds1_generator_path,
-            train_csv=ds1_train_generator_path_output,
-            test_csv=ds1_test_generator_path_output,
-            train_ratio=0.70,
-        )
-    if True:
-        split_csv_train_val_test(
-            input_csv=ds1_generator_path,
-            train_csv=ds1_train_generator_path_output,
-            val_csv=ds1_val_generator_path_output,
-            test_csv=ds1_test_generator_path_output,
-            train_ratio=0.70,
-            val_ratio=0.15,
-        )
+    split_csv_train_val_test(
+        input_csv=ds1_generator_path,
+        train_csv=ds1_train_generator_path_output,
+        val_csv=ds1_val_generator_path_output,
+        test_csv=ds1_test_generator_path_output,
+        train_ratio=0.70,
+        val_ratio=0.15,
+    )
 
     # -----------------------------------------------------
     # DS2
@@ -176,23 +168,15 @@ def main():
     ds2_train_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{2}_generator_train.csv"
     ds2_val_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{2}_generator_val.csv"
     ds2_test_generator_path_output = cfg.DATA_PATH / "train_test_split" / f"ds{2}_generator_test.csv"
-    if False:
-        split_csv_train_test(
-            input_csv=ds2_generator_path,
-            train_csv=ds2_train_generator_path_output,
-            test_csv=ds2_test_generator_path_output,
-            train_ratio=0.75,
-        )
-    if True:
-        split_csv_train_val_test(
-            input_csv=ds2_generator_path,
-            train_csv=ds2_train_generator_path_output,
-            val_csv=ds2_val_generator_path_output,
-            test_csv=ds2_test_generator_path_output,
-            train_ratio=0.7,
-            val_ratio=0.15,
-        )
 
+    split_csv_train_val_test(
+        input_csv=ds2_generator_path,
+        train_csv=ds2_train_generator_path_output,
+        val_csv=ds2_val_generator_path_output,
+        test_csv=ds2_test_generator_path_output,
+        train_ratio=0.7,
+        val_ratio=0.15,
+    )
 
 if __name__ == '__main__':
     main()

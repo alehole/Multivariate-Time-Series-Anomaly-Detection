@@ -64,22 +64,28 @@ def create_combined_subsystem_csv(
     return combined_df
 
 def main():
+
+    # ---------------------------------------------------------
+    # Additional cooling / ambient temperature sensors
+    # ---------------------------------------------------------
     extra_tags = [
         "LT FW TEMP.",
         "FAN 1 TEMPERATURE",
         "FAN 3 TEMPERATURE",
     ]
 
-    for dataset in (1, 2):
-        dataset_name = f"DS{dataset}"
+    # Add the sensors to both generator subsystem files.
+    subsystem_files = [
+        "AE_PORT.csv",
+        "AE_STBD.csv",
+    ]
 
-        base_csv = (
-            DATA_PATH
-            / "subsystems"
-            / dataset_name
-            / "NUMERIC"
-            / "AE_PORT.csv"
-        )
+    # ---------------------------------------------------------
+    # Process DS1 and DS2
+    # ---------------------------------------------------------
+    for dataset in (1, 2):
+
+        dataset_name = f"DS{dataset}"
 
         extra_csv = (
             DATA_PATH
@@ -88,24 +94,44 @@ def main():
             / "LiveData.csv"
         )
 
-        out_csv = (
-            DATA_PATH
-            / "subsystems"
-            / dataset_name
-            / "NUMERIC"
-            / "AE_PORT_with_extra_TEMP.csv"
-        )
+        for subsystem_file in subsystem_files:
 
-        print(f"\nProcessing {dataset_name}...")
-        print(f"Base CSV:  {base_csv}")
-        print(f"Extra CSV: {extra_csv}")
+            base_csv = (
+                DATA_PATH
+                / "subsystems"
+                / dataset_name
+                / "NUMERIC"
+                / subsystem_file
+            )
 
-        create_combined_subsystem_csv(
-            base_csv=base_csv,
-            extra_csv=extra_csv,
-            out_csv=out_csv,
-            extra_tags=extra_tags,
-        )
+            # Update the subsystem CSV in place.
+            out_csv = base_csv
+
+            # Some datasets may not contain both subsystem files.
+            if not base_csv.exists():
+                print(
+                    f"\nSkipping {dataset_name}/{subsystem_file}: "
+                    f"file does not exist."
+                )
+                continue
+
+            print()
+            print("=" * 70)
+            print(
+                f"Processing {dataset_name} - "
+                f"{subsystem_file}"
+            )
+            print("=" * 70)
+            print(f"Base CSV : {base_csv}")
+            print(f"Raw CSV  : {extra_csv}")
+
+            create_combined_subsystem_csv(
+                base_csv=base_csv,
+                extra_csv=extra_csv,
+                out_csv=out_csv,
+                extra_tags=extra_tags,
+                tolerance="2min",
+            )
 
 
 if __name__ == "__main__":

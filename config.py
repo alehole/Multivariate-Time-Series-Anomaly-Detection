@@ -51,6 +51,9 @@ DATASET_RENAME_MAPS = {
         "AE PORT CYL.4 EXH.GAS TEMP.": "T12",
         "AE PORT CYL.5 EXH.GAS TEMP.": "T13",
         "AE PORT CYL.6 EXH.GAS TEMP.": "T14",
+        "LT FW TEMP.": "T15",
+        "FAN 1 TEMPERATURE": "T16",
+        "FAN 3 TEMPERATURE": "T17",
     },
 
     "ds2": {
@@ -71,6 +74,10 @@ DATASET_RENAME_MAPS = {
         "AE STBD CYL.4 EXH.GAS TEMP.": "T12",
         "AE STBD CYL.5 EXH.GAS TEMP.": "T13",
         "AE STBD CYL.6 EXH.GAS TEMP.": "T14",
+        "LT FW TEMP.": "T15",
+        "FAN 1 TEMPERATURE": "T16",
+        "FAN 3 TEMPERATURE": "T17",
+
     },
 }
 

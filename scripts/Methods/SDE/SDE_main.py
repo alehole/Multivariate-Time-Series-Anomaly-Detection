@@ -232,6 +232,7 @@ def report_nis(
     print(f"Likelihood cost:   {likelihood_cost:.3f}")
 
 def main():
+
     data_path = Path(cfg.DATA_PATH)
     # -----------------------------------------------------
     # Load training and testing datasets
