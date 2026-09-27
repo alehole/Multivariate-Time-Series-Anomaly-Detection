@@ -73,8 +73,8 @@ def get_tnn_column_groups() -> tuple[list[str], list[str]]:
         )
     )
 
-    # T7 = HT FW outlet temperature in the mapping.
-    cooling_columns = ["T7"] if "T7" in cfg.INPUT_COLS else []
+    # T16 = FAN1 .
+    cooling_columns = ["T16"] if "T16" in cfg.INPUT_COLS else []
 
     return temperature_cols, cooling_columns
 

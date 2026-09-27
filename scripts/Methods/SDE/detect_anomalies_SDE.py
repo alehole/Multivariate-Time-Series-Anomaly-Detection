@@ -37,7 +37,7 @@ def main():
     # -----------------------------------------------------
     # 1. Select fitted SDE and anomaly dataset
     # -----------------------------------------------------
-    model_path = Path(cfg.DATA_PATH)/"models"/"ds1_2state_sde.pkl"
+    model_path = Path(cfg.DATA_PATH)/"models"/"ds1_2state_A_sde.pkl"
     data_path = Path(cfg.DATA_PATH)
     test_path = data_path / "train_test_split/ds1_generator_test.csv"
 
@@ -221,8 +221,8 @@ def main():
         x_pred,
         x_hat,
         title="Testing: Model vs EKF",
+        target_cols=["T1"],
     )
-
 
 if __name__ == "__main__":
     main()

@@ -92,6 +92,8 @@ MODEL_FUNCTIONS: dict[str, ModelFunction] = {
     "1state": model_1state,
     "1state_2ref": model_1state_2ref,
     "2state": model_2state,
+    "2state_A": model_2state,
+    "2state_B": model_2state,
 }
 
 

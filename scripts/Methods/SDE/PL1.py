@@ -7,7 +7,7 @@ def run_pl1(df_train, theta_hat, nll_ref):
     ## PL1
     profiles = profile_likelihood_1d(
         df_train, theta_hat, nll_ref,
-        n_points=21,  # odd number so the optimum sits on a grid point
+        n_points=41,  # odd number so the optimum sits on a grid point
         inner_maxiter=150,  # keep inner solves short
     )
     import numpy as np
@@ -39,13 +39,36 @@ def profile_likelihood_1d(df, theta_hat, nll_ref,
     hi = np.asarray(UPPER_BOUND, float)
     n = len(theta_hat)
     profiles = {}
+    '''
+    PL1_SPANS = {
+        "C1": 0.60,
+        "C2": 1.00,
+        "R1": 0.25,
+        "R2": 1.00,
+    }
+    '''
+    PL1_SPANS = {
+        "C1": 0.02,  # ±2 %
+        "C2": 1.00,
+        "R1": 0.005,  # ±0.5 %
+        "R2": 1.00,
+    }
 
     for i in range(n):
+
+        name = PARAMETER_NAMES[i]
         center = theta_hat[i]
-        span = 0.03 * center  # ±3% around the optimum
-        #span = 0.5 * center  # ±50% around the optimum
-        grid = np.linspace(max(lo[i], center - span),
-                           min(hi[i], center + span), n_points)
+
+        relative_span = PL1_SPANS.get(name, 0.5)
+        span = relative_span * center
+
+        grid = np.linspace(
+            max(lo[i], center - span),
+            min(hi[i], center + span),
+            n_points,
+        )
+
+        rel = np.full(n_points, np.nan)
         rel = np.full(n_points, np.nan)
 
         free = [j for j in range(n) if j != i]

@@ -208,8 +208,26 @@ def plot_NIS(df, NIS, title=""):
     plt.show()
 
 
-def plot_full_ekf_comparison(df, x_sim, x_pred_hist, x_hat, title=""):
+def plot_full_ekf_comparison(
+    df,
+    x_sim,
+    x_pred_hist,
+    x_hat,
+    title="",
+    target_cols=None,
+):
     plot_cols, plot_indices = get_plot_cols()
+
+    # Only keep requested states
+    if target_cols is not None:
+        selected = [
+            (name, idx)
+            for name, idx in zip(plot_cols, plot_indices)
+            if name in target_cols
+        ]
+
+        plot_cols = [name for name, _ in selected]
+        plot_indices = [idx for _, idx in selected]
 
     fig, axes = plt.subplots(
         len(plot_cols),
@@ -222,6 +240,7 @@ def plot_full_ekf_comparison(df, x_sim, x_pred_hist, x_hat, title=""):
         axes = [axes]
 
     for ax, name, idx in zip(axes, plot_cols, plot_indices):
+
         ax.plot(
             df["Created"],
             df[name],

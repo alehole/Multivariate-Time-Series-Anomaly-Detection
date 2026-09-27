@@ -5,20 +5,19 @@ from pathlib import Path
 # ---------------------------------------------------------
 # SDE model selection
 # ---------------------------------------------------------
-MODEL_OPTION = "2state"
+MODEL_OPTION = "2state_A"
 
 # ---------------------------------------------------------
 # SDE run configuration
 # ---------------------------------------------------------
-RUN_TOY_CHECK = False
-RUN_PL1 = False
+RUN_TOY_CHECK = True
+RUN_PL1 = True
 RUN_PL2 = False
 RUN_WILKS = False
 
 RESIDUAL_ANOMALY_THRESHOLD = 1.95  # [°C]
 MAXITER = 2000
 NIS_THRESHOLD_PERCENTILE = 0.995
-
 
 # ---------------------------------------------------------
 # Toy-data configuration
@@ -38,15 +37,15 @@ MODEL_CONFIGS = {
         "meas_cols": ["T1"],
         "input_cols": ["P", "Tref"],
         "parameter_names": ["C1", "R1"],
-        "theta0": np.array([2e5, 0.04]),
+        "theta0": np.array([1.15e5, 0.04]),
         "lower_bound": np.array([1.0e4, 0.005]),
-        "upper_bound": np.array([1.0e7, 1.0]),
+        "upper_bound": np.array([1.0e6, 0.5]),
         "Q": np.diag([0.0001]),
         "R": np.diag([0.5**2]),
         "C": np.array([[1.0]]),
     },
 
-    "2state": {
+    "2state_A": {
         "state_cols": ["T1", "T2"],
         "meas_cols": ["T1", "T2"],
         "input_cols": ["P", "Tref"],
@@ -64,10 +63,10 @@ MODEL_CONFIGS = {
             0.005,
         ]),
         "upper_bound": np.array([
-            1.0e8,
-            1.0e8,
-            1.0,
-            1.0,
+            1e8,  # C1
+            5e8,  # C2
+            0.5,  # R1
+            2.0,  # R2
         ]),
         "Q": np.diag([
             0.0001,
@@ -76,6 +75,39 @@ MODEL_CONFIGS = {
         "R": np.diag([
             0.5 ** 2,  # U-winding sensor
             0.5 ** 2,  # end-bearing sensor
+        ]),
+        "C": np.eye(2),
+    },
+    "2state_B": {
+        "state_cols": ["T1", "T2"],
+        "meas_cols": ["T1", "T2"],
+        "input_cols": ["P", "Tref"],
+        "parameter_names": ["C1", "C2", "R1", "R2"],
+        "theta0": np.array([
+            1.5e7,  # C1
+            2.5e8,  # C2
+            0.011,  # R1
+            0.03,   # R2
+        ]),
+        "lower_bound": np.array([
+            1.0e4,
+            1.0e4,
+            0.005,
+            0.005,
+        ]),
+        "upper_bound": np.array([
+            1e8,  # C1
+            5e8,  # C2
+            0.5,  # R1
+            2.0,  # R2
+        ]),
+        "Q": np.diag([
+            0.0001,
+            0.0001,
+        ]),
+        "R": np.diag([
+            0.5 ** 2,  # U-winding measurement
+            0.5 ** 2,  # End-bearing measurement
         ]),
         "C": np.eye(2),
     },
@@ -128,12 +160,21 @@ else:
             generic_to_raw["T16"]: "Tref",   # FAN 1 temperature
         }
 
-    elif MODEL_OPTION == "2state":
+    elif MODEL_OPTION == "2state_A":
         RENAME_MAP = {
             generic_to_raw["T1"]: "T1",      # U-winding temperature
             generic_to_raw["T6"]: "T2",      # LUB.OIL TEMP.
             generic_to_raw["E1"]: "P",       # Generator power
             generic_to_raw["T16"]: "Tref",   # FAN 1 temperature
         }
+    elif MODEL_OPTION == "2state_B":
+        RENAME_MAP = {
+
+            generic_to_raw["T1"]: "T1",  # U-winding temperature
+            generic_to_raw["T5"]: "T2",  # End-bearing temperature
+            generic_to_raw["E1"]: "P",# Generator power
+            generic_to_raw["T16"]: "Tref",# FAN 1 temperature
+        }
+
 
 SENSOR_COLS = list(RENAME_MAP.keys())

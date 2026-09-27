@@ -3,7 +3,7 @@ from scipy.optimize import minimize
 from SDE_config import THETA0, LOWER_BOUND, UPPER_BOUND, Q, R, C,PARAMETER_NAMES
 from parameter_estimation import neg_log_likelihood
 
-def run_pl2(name_a, name_b, df_train, theta_hat, nll_ref, n_points=15, inner_maxiter=120):
+def run_pl2(name_a, name_b, df_train, theta_hat, nll_ref, n_points=25, inner_maxiter=120):
     i, j = PARAMETER_NAMES.index(name_a), PARAMETER_NAMES.index(name_b)
 
     if len(theta_hat) > 2:
@@ -31,10 +31,27 @@ def profile_likelihood_2d(df, theta_hat, nll_ref, i, j,
     lo = np.asarray(LOWER_BOUND, float)
     hi = np.asarray(UPPER_BOUND, float)
     n = len(theta_hat)
+    PL2_SPANS = {
+        ("C1", "R1"): (0.30, 0.20),
+        ("C2", "R2"): (1.00, 1.00),
+    }
 
-    # grids for the two held parameters (±50% around optimum, adjust as needed)
-    gi = np.linspace(max(lo[i], 0.5*theta_hat[i]), min(hi[i], 1.5*theta_hat[i]), n_points)
-    gj = np.linspace(max(lo[j], 0.5*theta_hat[j]), min(hi[j], 1.5*theta_hat[j]), n_points)
+    span_i, span_j = PL2_SPANS.get(
+        (PARAMETER_NAMES[i], PARAMETER_NAMES[j]),
+        (0.5, 0.5),
+    )
+
+    gi = np.linspace(
+        max(lo[i], (1 - span_i) * theta_hat[i]),
+        min(hi[i], (1 + span_i) * theta_hat[i]),
+        n_points,
+    )
+
+    gj = np.linspace(
+        max(lo[j], (1 - span_j) * theta_hat[j]),
+        min(hi[j], (1 + span_j) * theta_hat[j]),
+        n_points,
+    )
 
     free = [k for k in range(n) if k not in (i, j)]
     scale = theta_hat[free]
@@ -83,7 +100,7 @@ def plot_pl2(gi, gj, Z, name_i, name_j, theta_hat_i, theta_hat_j):
     plt.tight_layout()
     plt.show()
 
-def likelihood_surface_2d(df, theta_hat, nll_ref, i, j, n_points=25):
+def likelihood_surface_2d(df, theta_hat, nll_ref, i, j, n_points=31):
     lo, hi = np.asarray(LOWER_BOUND, float), np.asarray(UPPER_BOUND, float)
     gi = np.linspace(0.7*theta_hat[i], 1.3*theta_hat[i], n_points)
     gj = np.linspace(0.7*theta_hat[j], 1.3*theta_hat[j], n_points)
