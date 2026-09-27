@@ -5,7 +5,7 @@ from pathlib import Path
 # ---------------------------------------------------------
 # SDE model selection
 # ---------------------------------------------------------
-MODEL_OPTION = "2state_A"
+MODEL_OPTION = "2state_B"
 
 # ---------------------------------------------------------
 # SDE run configuration

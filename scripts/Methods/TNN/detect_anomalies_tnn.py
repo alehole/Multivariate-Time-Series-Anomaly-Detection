@@ -210,6 +210,62 @@ def load_and_prepare_test_data(
         mask_test,
     )
 
+def predict_tnn_open_loop(
+    model,
+    test_tensor: torch.Tensor,
+    test_mask: torch.Tensor,
+    input_cols: list[str],
+    target_cols: list[str],
+    y_scaler,
+):
+    n_in = len(input_cols)
+    n_out = len(target_cols)
+
+    # Collect valid samples from all profiles in chronological order
+    sequence_parts = []
+
+    for i in range(test_tensor.shape[0]):
+        valid = test_mask[i].bool()
+        profile = test_tensor[i, valid, :]
+
+        if len(profile) > 0:
+            sequence_parts.append(profile)
+
+    if not sequence_parts:
+        raise RuntimeError("No valid test samples found.")
+
+    # One continuous sequence
+    sequence = torch.cat(sequence_parts, dim=0).unsqueeze(0) # # all profiles → one sequence
+
+    # Inputs u(k)
+    x = sequence[:, :-1, :n_in]
+
+    # Actual y(k+1), only for later evaluation
+    y_true = sequence[:, 1:, -n_out:]
+
+    # Only ONE measured initialization
+    state0 = sequence[:, 0, -n_out:]    # only this measurement is used
+
+    model.eval()
+    with torch.no_grad():
+        pred_scaled, _ = model(x, state0) # recursive over the whole test set
+
+    pred_scaled_np = pred_scaled.cpu().numpy()
+
+    batch_size, seq_len, n_features = pred_scaled_np.shape
+
+    predicted_c = y_scaler.inverse_transform(
+        pred_scaled_np.reshape(-1, n_features)
+    ).reshape(batch_size, seq_len, n_features)
+
+    pair_mask = torch.ones(
+        (1, seq_len),
+        dtype=torch.bool,
+        device=test_tensor.device,
+    )
+
+    return predicted_c, y_true, pair_mask
+
 def predict_tnn(
     model,
     test_tensor: torch.Tensor,
@@ -242,6 +298,55 @@ def predict_tnn(
 
     return predicted_c, pair_mask
 
+def flatten_open_loop_results(
+    actual_df: pd.DataFrame,
+    test_profiles: list[int],
+    predicted_c: np.ndarray,
+) -> tuple[pd.DataFrame, np.ndarray]:
+
+    # Reconstruct actual data in exactly the same profile order
+    blocks = []
+
+    grouped = actual_df.groupby(
+        "profile_id",
+        sort=False,
+    )
+
+    for profile_id in test_profiles:
+        profile_df = (
+            grouped.get_group(profile_id)
+            .sort_values(cfg.TS_COL)
+            .reset_index(drop=True)
+        )
+
+        blocks.append(profile_df)
+
+    # Full chronological sequence
+    full_actual = pd.concat(
+        blocks,
+        ignore_index=True,
+    )
+
+    # Prediction at k corresponds to measurement at k+1
+    result_df = (
+        full_actual.iloc[1:]
+        .reset_index(drop=True)
+        .copy()
+    )
+
+    # Remove batch dimension
+    predicted_valid_c = predicted_c[0]
+
+    # Safety check
+    n = min(
+        len(result_df),
+        len(predicted_valid_c),
+    )
+
+    result_df = result_df.iloc[:n].reset_index(drop=True)
+    predicted_valid_c = predicted_valid_c[:n]
+
+    return result_df, predicted_valid_c
 
 def flatten_aligned_results(
     actual_df: pd.DataFrame,
@@ -323,7 +428,7 @@ def main():
     # -----------------------------------------------------
     # 1. Load pretrained model
     # -----------------------------------------------------
-    model_path = f"{cfg.DS}_{cfg.OUTPUT_TYPE}_{model_config}_tnn_winding_baseline.pt"
+    model_path = f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
     model, metadata = load_tnn(model_path, cfg.DEVICE)
 
     input_cols = metadata["input_cols"]
@@ -369,22 +474,41 @@ def main():
     # -----------------------------------------------------
     # 3. Predict winding temperatures
     # -----------------------------------------------------
-    predicted_c, pair_mask = predict_tnn(
-        model=model,
-        test_tensor=test_tensor,
-        test_mask=test_mask,
-        input_cols=input_cols,
-        target_cols=target_cols,
-        y_scaler=y_scaler,
-    )
 
-    result_df, predicted_valid_c = flatten_aligned_results(
-        actual_df=actual_df,
-        test_profiles=test_profiles,
-        predicted_c=predicted_c,
-        pair_mask=pair_mask,
-        target_cols=target_cols,
-    )
+    OPEN_LOOP_PREDICT = True
+
+    if OPEN_LOOP_PREDICT:
+        predicted_c, y_true, pair_mask = predict_tnn_open_loop(
+            model=model,
+            test_tensor=test_tensor,
+            test_mask=test_mask,
+            input_cols=input_cols,
+            target_cols=target_cols,
+            y_scaler=y_scaler,
+        )
+        result_df, predicted_valid_c = flatten_open_loop_results(
+            actual_df=actual_df,
+            test_profiles=test_profiles,
+            predicted_c=predicted_c,
+        )
+    else:
+        predicted_c, pair_mask = predict_tnn(
+            model=model,
+            test_tensor=test_tensor,
+            test_mask=test_mask,
+            input_cols=input_cols,
+            target_cols=target_cols,
+            y_scaler=y_scaler,
+        )
+
+        result_df, predicted_valid_c = flatten_aligned_results(
+            actual_df=actual_df,
+            test_profiles=test_profiles,
+            predicted_c=predicted_c,
+            pair_mask=pair_mask,
+            target_cols=target_cols,
+        )
+
 
     actual_c = result_df[target_cols].to_numpy(
         dtype=float
