@@ -168,7 +168,9 @@ def load_and_prepare_test_data(
     )
 
 def main():
-    ANOMALY_THRESHOLD = 3.0
+    CALC_THRESHOLDS = False
+    ANOMALY_THRESHOLDS = [2.538, 2.803, 2.718]
+
     model_config = cfg.CONFIG
     show_anomalies = True
     # -----------------------------------------------------
@@ -260,14 +262,27 @@ def main():
     # -----------------------------------------------------
     # 5. Calculate residuals and anomaly flags
     # -----------------------------------------------------
+    # -----------------------------------------------------
+    # 5. Calculate residuals and anomaly thresholds
+    # -----------------------------------------------------
     residuals_c = actual_c - predicted_valid_c
-
     missing_measurements = ~np.isfinite(actual_c)
 
-    anomalies = (
-                        np.abs(residuals_c) > ANOMALY_THRESHOLD
-                ) | missing_measurements
+    if CALC_THRESHOLDS:
+        ANOMALY_THRESHOLDS = np.nanquantile(
+            np.abs(residuals_c),
+            0.995,
+            axis=0,
+        )
 
+    ANOMALY_THRESHOLDS = np.atleast_1d(ANOMALY_THRESHOLDS)
+
+    for target, threshold in zip(target_cols, ANOMALY_THRESHOLDS):
+        print(f"{target} anomaly threshold: {threshold:.3f} °C")
+
+    anomalies = (
+                        np.abs(residuals_c) > ANOMALY_THRESHOLDS
+                ) | missing_measurements
     # -----------------------------------------------------
     # 6. Build result dataframe
     # -----------------------------------------------------
@@ -319,7 +334,7 @@ def main():
         data=result_df,
         residual=residuals_c,
         target_cols=target_cols,
-        anomaly_threshold=ANOMALY_THRESHOLD,
+        anomaly_threshold=ANOMALY_THRESHOLDS,
         show_threshold=show_anomalies,
     )
 
@@ -330,7 +345,7 @@ def main():
         actual_df=actual_df,
         predicted=predicted_valid_c,
         target_cols=target_cols,
-        anomaly_threshold=ANOMALY_THRESHOLD,
+        anomaly_threshold=ANOMALY_THRESHOLDS,
     )
 
     # -----------------------------------------------------

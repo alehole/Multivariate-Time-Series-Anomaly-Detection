@@ -419,8 +419,8 @@ def flatten_aligned_results(
 
 
 def main():
-    CALC_THRESHOLDS = True
-    ANOMALY_THRESHOLDS = [0.0, 0.0, 0.0]
+    CALC_THRESHOLDS = False
+    ANOMALY_THRESHOLDS = [3.041, 3.211, 2.848]
 
     USE_ANOMALY_FILE = False
 
@@ -523,10 +523,21 @@ def main():
     residuals_c = actual_c - predicted_valid_c
     missing_measurements = ~np.isfinite(actual_c)
 
-    anomalies = (
-        np.abs(residuals_c) > ANOMALY_THRESHOLDS
-    ) | missing_measurements
+    if CALC_THRESHOLDS:
+        ANOMALY_THRESHOLDS = np.nanquantile(
+            np.abs(residuals_c),
+            0.995,
+            axis=0,
+        )
 
+    ANOMALY_THRESHOLDS = np.atleast_1d(ANOMALY_THRESHOLDS)
+
+    for target, threshold in zip(target_cols, ANOMALY_THRESHOLDS):
+        print(f"{target} anomaly threshold: {threshold:.3f} °C")
+
+    anomalies = (
+                        np.abs(residuals_c) > ANOMALY_THRESHOLDS
+                ) | missing_measurements
 
     # -----------------------------------------------------
     # 5. Build result dataframe
@@ -579,8 +590,8 @@ def main():
         data=result_df,
         residual=residuals_c,
         target_cols=target_cols,
-        anomaly_threshold=ANOMALY_THRESHOLD,
-        show_threshold=False,
+        anomaly_threshold=ANOMALY_THRESHOLDS,
+        show_threshold=True,
     )
     # -----------------------------------------------------
     # 8. Plot actual versus predicted
@@ -589,7 +600,7 @@ def main():
         actual_df=result_df,
         predicted=predicted_valid_c,
         target_cols=target_cols,
-        anomaly_threshold=ANOMALY_THRESHOLD,
+        anomaly_threshold=ANOMALY_THRESHOLDS,
     )
     # -----------------------------------------------------
     # 9. Plot actual versus predicted scatter
