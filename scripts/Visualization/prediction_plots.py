@@ -129,7 +129,9 @@ def plot_actual_vs_predicted(
         ax.set_ylabel("Temp (°C)")
         ax.set_title(col)
         ax.grid(True)
-        anomaly_mask = np.abs(y_true - y_pred) > anomaly_threshold
+        threshold_i = np.atleast_1d(anomaly_threshold)[i]
+
+        anomaly_mask = np.abs(y_true - y_pred) > threshold_i
 
         ax.scatter(
             t[anomaly_mask],

@@ -419,7 +419,9 @@ def flatten_aligned_results(
 
 
 def main():
-    ANOMALY_THRESHOLD = 10.0
+    CALC_THRESHOLDS = True
+    ANOMALY_THRESHOLDS = [0.0, 0.0, 0.0]
+
     USE_ANOMALY_FILE = False
 
     model_config = cfg.CONFIG
@@ -522,7 +524,7 @@ def main():
     missing_measurements = ~np.isfinite(actual_c)
 
     anomalies = (
-        np.abs(residuals_c) > ANOMALY_THRESHOLD
+        np.abs(residuals_c) > ANOMALY_THRESHOLDS
     ) | missing_measurements
 
 

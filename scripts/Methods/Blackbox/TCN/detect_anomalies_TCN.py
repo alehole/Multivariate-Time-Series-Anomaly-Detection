@@ -166,7 +166,9 @@ def load_trained_tcn(
     )
 
 def main():
-    ANOMALY_THRESHOLD = 6.0
+    CALC_THRESHOLDS = False
+    ANOMALY_THRESHOLDS = [4.270, 3.291, 3.838]
+
     model_config = cfg.CONFIG
     # -----------------------------------------------------
     # 1. Load pretrained model
@@ -260,16 +262,27 @@ def main():
         )
 
     # -----------------------------------------------------
-    # 5. Calculate residuals and anomaly flags
+    # 5. Calculate residuals and anomaly thresholds
     # -----------------------------------------------------
     residuals_c = actual_c - predicted_valid_c
 
     missing_measurements = ~np.isfinite(actual_c)
 
-    anomalies = (
-        np.abs(residuals_c) > ANOMALY_THRESHOLD
-    ) | missing_measurements
 
+    if CALC_THRESHOLDS:
+        # One 99.5th percentile threshold for each output
+        ANOMALY_THRESHOLDS = np.nanquantile(
+            np.abs(residuals_c),
+            0.995,
+            axis=0,
+        )
+
+    for target, threshold in zip(target_cols, ANOMALY_THRESHOLDS):
+        print(f"{target} anomaly threshold: {threshold:.3f} °C")
+
+    anomalies = (
+                        np.abs(residuals_c) > ANOMALY_THRESHOLDS
+                ) | missing_measurements
     # -----------------------------------------------------
     # 6. Build result dataframe
     # -----------------------------------------------------
@@ -326,8 +339,8 @@ def main():
         data=result_df,
         residual=residuals_c,
         target_cols=target_cols,
-        anomaly_threshold=ANOMALY_THRESHOLD,
-        show_threshold=False,
+        anomaly_threshold=ANOMALY_THRESHOLDS,
+        show_threshold=True,
     )
 
     # -----------------------------------------------------
@@ -337,7 +350,7 @@ def main():
         actual_df=actual_df,
         predicted=predicted_valid_c,
         target_cols=target_cols,
-        anomaly_threshold=ANOMALY_THRESHOLD,
+        anomaly_threshold=ANOMALY_THRESHOLDS,
     )
 
     # -----------------------------------------------------

@@ -11,7 +11,7 @@ def _plot_residual_series(
     axes=None,
     anomaly_masks: list[np.ndarray] | None = None,
     label: str = "Residual",
-    anomaly_threshold: float = 3.0,
+    anomaly_threshold: float | list[float] | np.ndarray = 3.0,
     show_threshold: bool = True,
     show_legend: bool = False,
 ):
@@ -22,21 +22,25 @@ def _plot_residual_series(
         if len(target_cols) == 1:
             axes = [axes]
         created_fig = True
+    thresholds = np.atleast_1d(anomaly_threshold)
 
     for i, col in enumerate(target_cols):
         ax = axes[i]
         y = residual[:, i]
 
+        threshold_i = thresholds[0] if len(thresholds) == 1 else thresholds[i]
+
         ax.plot(time_values, y, label=label)
         ax.axhline(0.0, linestyle="--", color="black")
         ax.set_ylabel("Residual ΔT (°C)")
+
         if show_threshold:
             ax.set_title(
                 f"Prediction residual – {col} | "
-                f"threshold = ±{anomaly_threshold:.1f} °C"
+                f"threshold = ±{threshold_i:.1f} °C"
             )
-            ax.axhline(anomaly_threshold, linestyle=":", color="red")
-            ax.axhline(-anomaly_threshold, linestyle=":", color="red")
+            ax.axhline(threshold_i, linestyle=":", color="red")
+            ax.axhline(-threshold_i, linestyle=":", color="red")
         else:
             ax.set_title(
                 f"Prediction residual – {col}"
@@ -123,8 +127,11 @@ def plot_residuals_profiles(
 
         residual = y_true - y_pred
 
+        thresholds = np.atleast_1d(anomaly_threshold)
+
         anomaly_masks = [
-            np.abs(residual[:, j]) > anomaly_threshold
+            np.abs(residual[:, j]) >
+            (thresholds[0] if len(thresholds) == 1 else thresholds[j])
             for j in range(len(target_cols))
         ]
 

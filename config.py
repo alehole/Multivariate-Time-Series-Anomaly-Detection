@@ -26,8 +26,7 @@ SEED = 42
 TS_COL = "Created"
 
 DS = "ds1"
-CONFIG = "MC1"
-
+CONFIG = "MC4"
 
 # ---------------------------------------------------------
 # Data model configuration shared by all methods
@@ -102,6 +101,7 @@ MODEL_CONFIGS = {
     "MC4": {
         "input_cols": ["E1", "T4", "T5", "T6", "T7"],
         "target_cols": ["T1", "T2", "T3"],
+        #"target_cols": ["T3"],
     },
     "MC5": {
         "input_cols": ["E1", "T5", "T6", "T7", "T8", "T9"],
