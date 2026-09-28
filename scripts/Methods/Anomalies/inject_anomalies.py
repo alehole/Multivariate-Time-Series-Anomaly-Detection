@@ -138,7 +138,7 @@ def main():
     # =====================================================
 
     # Generic sensor name from config.py
-    sensor = "T6" # T1
+    sensor = "T5" # T1 # T5 end bearing
     # Select ONE synthetic fault
     fault = "F4"
 
@@ -169,7 +169,9 @@ def main():
     sigma_sensor = pd.to_numeric(train_data[col], errors="coerce").std()
 
     noise_std = 0.5 * sigma_sensor
+    #noise_std = 2.0 * sigma_sensor
     bias = 1.0 * sigma_sensor
+    #bias = 2.0 * sigma_sensor
     final_drift = 2.0 * sigma_sensor
 
     print(f"Sensor standard deviation : {sigma_sensor:.3f}")

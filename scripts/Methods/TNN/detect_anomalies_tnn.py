@@ -422,7 +422,7 @@ def main():
     CALC_THRESHOLDS = False
     ANOMALY_THRESHOLDS = [3.041, 3.211, 2.848]
 
-    USE_ANOMALY_FILE = False
+    USE_ANOMALY_FILE = True
 
     model_config = cfg.CONFIG
     data_path = Path(cfg.DATA_PATH)
@@ -452,7 +452,7 @@ def main():
     # 2. Load and prepare anomaly test dataset
     # -----------------------------------------------------
     if USE_ANOMALY_FILE:
-        test_path = data_path/"train_test_split"/ "with_anomalies"/ f"{cfg.DS}_generator_test_w_anomalies.csv"
+        test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
     else:
         test_path = data_path/"train_test_split"/f"{cfg.DS}_generator_test.csv"
 
@@ -592,6 +592,7 @@ def main():
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLDS,
         show_threshold=True,
+        plot_targets=["T1","T2","T3"],
     )
     # -----------------------------------------------------
     # 8. Plot actual versus predicted

@@ -199,9 +199,9 @@ def main():
     # -----------------------------------------------------
     data_path = Path(cfg.DATA_PATH)
 
-    #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_generator_test_w_anomalies.csv"
+    test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
 
-    test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
+    #test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
     (
         test_data,
         actual_df,
@@ -341,6 +341,7 @@ def main():
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLDS,
         show_threshold=True,
+        plot_targets=["T1", "T2", "T3"],
     )
 
     # -----------------------------------------------------

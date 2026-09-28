@@ -14,21 +14,44 @@ def _plot_residual_series(
     anomaly_threshold: float | list[float] | np.ndarray = 3.0,
     show_threshold: bool = True,
     show_legend: bool = False,
+    plot_targets: list[str] | None = None,
 ):
+    if plot_targets is None:
+        plot_targets = target_cols
+
+    plot_indices = [
+        target_cols.index(col)
+        for col in plot_targets
+    ]
+
     created_fig = False
 
     if axes is None:
-        fig, axes = plt.subplots(len(target_cols), 1, figsize=(14, 8), sharex=True)
-        if len(target_cols) == 1:
+        fig, axes = plt.subplots(
+            len(plot_targets),
+            1,
+            figsize=(14, 3 * len(plot_targets)),
+            sharex=True,
+        )
+
+        if len(plot_targets) == 1:
             axes = [axes]
+
         created_fig = True
+
     thresholds = np.atleast_1d(anomaly_threshold)
 
-    for i, col in enumerate(target_cols):
-        ax = axes[i]
-        y = residual[:, i]
+    for ax_idx, target_idx in enumerate(plot_indices):
+        col = target_cols[target_idx]
+        ax = axes[ax_idx]
 
-        threshold_i = thresholds[0] if len(thresholds) == 1 else thresholds[i]
+        y = residual[:, target_idx]
+
+        threshold_i = (
+            thresholds[0]
+            if len(thresholds) == 1
+            else thresholds[target_idx]
+        )
 
         ax.plot(time_values, y, label=label)
         ax.axhline(0.0, linestyle="--", color="black")
@@ -42,12 +65,13 @@ def _plot_residual_series(
             ax.axhline(threshold_i, linestyle=":", color="red")
             ax.axhline(-threshold_i, linestyle=":", color="red")
         else:
-            ax.set_title(
-                f"Prediction residual – {col}"
-            )
+            ax.set_title(f"Prediction residual – {col}")
+
         ax.grid(True)
+
         if anomaly_masks is not None:
-            mask = anomaly_masks[i]
+            mask = anomaly_masks[target_idx]
+
             ax.scatter(
                 np.asarray(time_values)[mask],
                 y[mask],
@@ -61,7 +85,6 @@ def _plot_residual_series(
 
     axes[-1].set_xlabel("Time")
 
-
     if created_fig:
         plt.tight_layout()
         plt.show()
@@ -71,8 +94,9 @@ def plot_residuals_inference(
     residual: np.ndarray,
     target_cols: list[str],
     ts_col: str = "Created",
-    anomaly_threshold: float = 3.0,
+    anomaly_threshold: float | list[float] | np.ndarray = 3.0,
     show_threshold: bool = True,
+    plot_targets: list[str] | None = None,
 ):
     t = data[ts_col].to_numpy()
 
@@ -90,6 +114,7 @@ def plot_residuals_inference(
         anomaly_threshold=anomaly_threshold,
         show_threshold=show_threshold,
         show_legend=False,
+        plot_targets=plot_targets,
     )
 
 def plot_residuals_profiles(

@@ -33,13 +33,21 @@ def load_sde_checkpoint(path):
 
 
 def main():
+    CALC_THRESHOLDS = False
+    ANOMALY_THRESHOLDS = [3.043, 0.632]
+
 
     # -----------------------------------------------------
     # 1. Select fitted SDE and anomaly dataset
     # -----------------------------------------------------
     model_path = Path(cfg.DATA_PATH)/"models"/"ds1_2state_B_sde.pkl"
     data_path = Path(cfg.DATA_PATH)
-    test_path = data_path / "train_test_split/ds1_generator_test.csv"
+
+    if CALC_THRESHOLDS:
+        test_path = data_path/"train_test_split"/"ds1_generator_val.csv"
+    else:
+        test_path = data_path/"train_test_split"/ "ds1_generator_test.csv"
+        #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
 
     # -----------------------------------------------------
     # 2. Load fitted SDE
@@ -58,7 +66,6 @@ def main():
     sensor_cols = checkpoint["sensor_cols"]
 
     #threshold = checkpoint["anomaly_threshold"]
-    threshold = 3.0
 
     print("SDE model loaded successfully")
     print("Model:", checkpoint["model_option"])
@@ -115,45 +122,77 @@ def main():
     residuals[0] = np.nan
 
     # -----------------------------------------------------
-    # 7. Detect anomalies
+    # 7. Calculate residual thresholds and anomaly flags
     # -----------------------------------------------------
 
-    anomalies = np.abs(residuals) > threshold
+    missing_measurements = ~np.isfinite(actual)
+
+    if CALC_THRESHOLDS:
+        ANOMALY_THRESHOLDS = np.nanquantile(
+            np.abs(residuals),
+            0.995,
+            axis=0,
+        )
+
+    ANOMALY_THRESHOLDS = np.atleast_1d(
+        ANOMALY_THRESHOLDS
+    )
+
+    for col, threshold_i in zip(
+            meas_cols,
+            ANOMALY_THRESHOLDS,
+    ):
+        print(
+            f"{col} anomaly threshold: "
+            f"{threshold_i:.3f} °C"
+        )
+
+    anomalies = (
+                        np.abs(residuals) > ANOMALY_THRESHOLDS
+                ) | missing_measurements
 
     result_df = df_test[[cfg.TS_COL, *meas_cols]].copy()
 
     anomaly_cols = []
 
     for j, col in enumerate(meas_cols):
-
         result_df[f"{col}_predicted"] = predicted[:, j]
         result_df[f"{col}_residual"] = residuals[:, j]
+        result_df[f"{col}_missing"] = missing_measurements[:, j]
         result_df[f"{col}_anomaly"] = anomalies[:, j]
 
         anomaly_cols.append(f"{col}_anomaly")
 
-    result_df["any_anomaly"] = result_df[anomaly_cols].any(axis=1)
+    result_df["any_anomaly"] = (
+        result_df[anomaly_cols].any(axis=1)
+    )
 
     # -----------------------------------------------------
     # 8. Results
     # -----------------------------------------------------
 
-    n_anomalies = int(result_df["any_anomaly"].sum())
-
-    print()
-    print(
-        f"Residual threshold: "
-        f"{threshold:.2f} °C"
+    n_anomalies = int(
+        result_df["any_anomaly"].sum()
     )
 
+    print()
+    print("Residual thresholds:")
+
+    for col, threshold_i in zip(
+            meas_cols,
+            ANOMALY_THRESHOLDS,
+    ):
+        print(
+            f"  {col}: {threshold_i:.3f} °C"
+        )
+
     print(
-        f"Detected anomalies: "
-        f"{n_anomalies}"
+        f"Detected anomalies: {n_anomalies}"
     )
 
     print(
         f"Anomaly percentage: "
-        f"{100*n_anomalies/len(result_df):.3f}%"
+        f"{100 * n_anomalies / len(result_df):.3f}%"
     )
 
     # -----------------------------------------------------
@@ -179,10 +218,10 @@ def main():
     # -----------------------------------------------------
     # 10. Plots
     # -----------------------------------------------------
-    target_cols = ["T1"]
-    target_idx = [meas_cols.index("T1")]
-    predicted_T1 = predicted[:, target_idx]
-    residuals_T1 = residuals[:, target_idx]
+    target_idx = meas_cols.index("T1")
+    threshold_T1 = ANOMALY_THRESHOLDS[target_idx]
+    predicted_T1 = predicted[:, [target_idx]]
+    residuals_T1 = residuals[:, [target_idx]]
 
     actual_df_T1 = result_df[
         [cfg.TS_COL, "T1"]
@@ -192,7 +231,7 @@ def main():
         data=result_df,
         residual=residuals_T1,
         target_cols=["T1"],
-        anomaly_threshold=threshold,
+        anomaly_threshold=threshold_T1,
         show_threshold=True,
     )
 
@@ -200,7 +239,7 @@ def main():
         actual_df=actual_df_T1,
         predicted=predicted_T1,
         target_cols=["T1"],
-        anomaly_threshold=threshold,
+        anomaly_threshold=threshold_T1,
     )
 
     plot_predicted_vs_actual_inference(
