@@ -17,7 +17,7 @@ class TemporalBlock(nn.Module):
         # left-padding amount for causal convolution
         self.pad = (kernel_size - 1) * dilation
 
-        # NOTE: no padding arg here — we pad manually on the left in forward
+        # Dilated convolutions
         self.conv1 = nn.Conv1d(
             in_channels,
             out_channels,
@@ -50,6 +50,7 @@ class TemporalBlock(nn.Module):
         out = self.relu(out)
         out = self.dropout(out)
 
+        # Residual connection
         residual = x if self.downsample is None else self.downsample(x)
 
         return self.relu(out + residual)

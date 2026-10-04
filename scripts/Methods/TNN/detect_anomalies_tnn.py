@@ -422,7 +422,7 @@ def main():
     CALC_THRESHOLDS = False
     ANOMALY_THRESHOLDS = [3.041, 3.211, 2.848]
 
-    USE_ANOMALY_FILE = True
+    USE_ANOMALY_FILE = False
 
     model_config = cfg.CONFIG
     data_path = Path(cfg.DATA_PATH)
@@ -431,6 +431,7 @@ def main():
     # 1. Load pretrained model
     # -----------------------------------------------------
     model_path = f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
+    #model_path = f"ds2_{model_config}_tnn_winding_baseline.pt"
     model, metadata = load_tnn(model_path, cfg.DEVICE)
 
     input_cols = metadata["input_cols"]
@@ -592,7 +593,7 @@ def main():
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLDS,
         show_threshold=True,
-        plot_targets=["T1","T2","T3"],
+        plot_targets=["T1"],
     )
     # -----------------------------------------------------
     # 8. Plot actual versus predicted

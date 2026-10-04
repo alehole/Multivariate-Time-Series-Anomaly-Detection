@@ -177,11 +177,8 @@ def main():
         "cuda" if torch.cuda.is_available() else "cpu"
     )
 
-    model, metadata = load_trained_tcn(
-        model_path=f"{cfg.DS}_{model_config}_tcn_winding_baseline.pt",
-
-        device=device,
-    )
+    model, metadata = load_trained_tcn(model_path=f"{cfg.DS}_{model_config}_tcn_winding_baseline.pt",  device=device)
+    #model, metadata = load_trained_tcn(model_path=f"ds2_{model_config}_tcn_winding_baseline.pt", device=device)
 
     x_scaler = metadata["x_scaler"]
     y_scaler = metadata["y_scaler"]
@@ -199,9 +196,9 @@ def main():
     # -----------------------------------------------------
     data_path = Path(cfg.DATA_PATH)
 
-    test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
+    #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
 
-    #test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
+    test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
     (
         test_data,
         actual_df,
@@ -340,8 +337,9 @@ def main():
         residual=residuals_c,
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLDS,
-        show_threshold=True,
-        plot_targets=["T1", "T2", "T3"],
+        show_threshold=False,
+        #plot_targets=["T1", "T2", "T3"],
+        plot_targets=["T1"],
     )
 
     # -----------------------------------------------------

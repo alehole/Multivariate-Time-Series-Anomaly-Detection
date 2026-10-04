@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
-from SDE_config import THETA0, LOWER_BOUND, UPPER_BOUND, Q, R, C,PARAMETER_NAMES
+from SDE_config import LOWER_BOUND, UPPER_BOUND, Q, R, C,PARAMETER_NAMES
 from parameter_estimation import neg_log_likelihood, minimize_nll
 
 def run_pl1(df_train, theta_hat, nll_ref):

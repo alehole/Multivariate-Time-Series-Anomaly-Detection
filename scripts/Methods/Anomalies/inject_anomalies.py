@@ -138,9 +138,9 @@ def main():
     # =====================================================
 
     # Generic sensor name from config.py
-    sensor = "T5" # T1 # T5 end bearing
+    sensor = "T1" # T1 # T5 end bearing
     # Select ONE synthetic fault
-    fault = "F4"
+    fault = "F2"
 
     # Resolve to DS-specific raw sensor name
     col = get_raw_sensor_name(sensor)

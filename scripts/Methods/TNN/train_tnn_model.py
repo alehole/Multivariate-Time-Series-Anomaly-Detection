@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 import config as cfg
-from Methods.Blackbox.common_BB_scripts import set_reproducibility
+
 from Methods.Blackbox.profile_dataset import (
     create_profiles,
     scale_train_val_test_data,
@@ -21,7 +21,10 @@ from Methods.TNN.experiment_configs import (
 from Methods.TNN.tnn_model import build_model
 from scripts.Visualization.metrics import compute_metrics
 from scripts.misc.feature_engineering import ts_cols
-
+from Methods.Blackbox.common_BB_scripts import (
+    set_reproducibility,
+    plot_training_history,
+)
 
 def load_and_prepare_data(
     csv_path: Path,
@@ -337,6 +340,15 @@ def evaluate_tnn(
         y_scaler,
     )
 
+    pred_c, y_true_scaled, pair_mask = predict_tnn(
+        model=model,
+        sequence_tensor=test_tensor,
+        sequence_mask=test_mask,
+        input_cols=cfg.INPUT_COLS,
+        target_cols=cfg.TARGET_COLS,
+        y_scaler=y_scaler,
+    )
+
     y_true_scaled_np = y_true_scaled.detach().cpu().numpy()
     batch_size, seq_len, n_features = y_true_scaled_np.shape
 
@@ -397,7 +409,6 @@ def save_tnn(
 
     torch.save(checkpoint, path)
     print(f"TNN model saved to {path}")
-
 
 def main():
     set_reproducibility(cfg.SEED)
@@ -505,6 +516,26 @@ def main():
     )
 
     # -----------------------------------------------------
+    # Model parameter summary
+    # -----------------------------------------------------
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(
+                f"{name:40s}",
+                f"shape={tuple(param.shape)!s:15s}",
+                f"n={param.numel()}"
+            )
+
+    total_params = sum(
+        p.numel()
+        for p in model.parameters()
+        if p.requires_grad
+    )
+
+    print("Trainable parameters:", total_params)
+
+
+    # -----------------------------------------------------
     # Training
     # -----------------------------------------------------
     model, history, best_epoch, best_val_loss = train_tnn(
@@ -522,6 +553,13 @@ def main():
             if key != "n_neurons"
         },
     )
+
+    plot_training_history(
+        history,
+        best_epoch=best_epoch,
+        save_path=f"results/{cfg.DS}_{cfg.CONFIG}_TNN_training_history.png",
+    )
+
     # -----------------------------------------------------
     # Final test evaluation
     # -----------------------------------------------------

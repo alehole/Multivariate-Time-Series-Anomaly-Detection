@@ -2,7 +2,6 @@ import numpy as np
 from model import f_discrete_implicit
 from SDE_config import STATE_COLS, MEAS_COLS, INPUT_COLS
 
-
 def jacobian_F(
     x,
     u_k,
@@ -158,7 +157,7 @@ def run_ekf(
         # Compute the Kalman gain:
         # K_{k+1} = P_{k+1|k} Cᵀ S_{k+1}^{-1}
         K = np.linalg.solve(S.T, (P_pred @ C.T).T).T # Kalman gain
-
+       # print("kalman gain", K)
         # Correct the predicted state:
         # x̂_{k+1|k+1} = x̂_{k+1|k} + K_{k+1} ε_{k+1}
         x_hat[k + 1] = x_pred + K @ innovation # Posterior

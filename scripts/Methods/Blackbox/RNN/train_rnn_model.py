@@ -48,7 +48,6 @@ def load_and_prepare_data(
 
     return data, dt_s
 
-
 def main():
     set_reproducibility(cfg.SEED)
     model_config = cfg.CONFIG

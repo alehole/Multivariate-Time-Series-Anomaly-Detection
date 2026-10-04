@@ -1,6 +1,5 @@
 import numpy as np
 import config as cfg
-from pathlib import Path
 
 # ---------------------------------------------------------
 # SDE model selection

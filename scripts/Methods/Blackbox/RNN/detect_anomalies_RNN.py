@@ -178,10 +178,8 @@ def main():
     # -----------------------------------------------------
 
     model_type = method_cfg.RNN_MODEL_TYPE
-    model, metadata = load_trained_recurrent_model(
-        model_path=f"{cfg.DS}_{model_config}_{model_type.lower()}_winding_baseline.pt",
-        device=cfg.DEVICE,
-    )
+    model, metadata = load_trained_recurrent_model(model_path=f"{cfg.DS}_{model_config}_{model_type.lower()}_winding_baseline.pt", device=cfg.DEVICE)
+    #model, metadata = load_trained_recurrent_model(model_path=f"ds2_{model_config}_{model_type.lower()}_winding_baseline.pt", device=cfg.DEVICE)
 
     x_scaler = metadata["x_scaler"]
     y_scaler = metadata["y_scaler"]
@@ -198,8 +196,8 @@ def main():
     # 2. Load and prepare anomaly test dataset
     # -----------------------------------------------------
     data_path = Path(cfg.DATA_PATH)
-    test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
-    #test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
+    #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
+    test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
     (
         test_data,
         actual_df,
@@ -336,8 +334,8 @@ def main():
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLDS,
         show_threshold=show_anomalies,
-        #plot_targets=["T1"],
-        plot_targets=["T1","T2","T3",],
+        plot_targets=["T1"],
+        #plot_targets=["T1","T2","T3",],
     )
 
     # -----------------------------------------------------

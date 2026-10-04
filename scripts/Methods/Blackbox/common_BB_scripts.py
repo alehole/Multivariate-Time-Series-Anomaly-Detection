@@ -79,7 +79,58 @@ def predict_sequence_model(
         data_scaled=pred_scaled,
         scaler=y_scaler,
     )
+import matplotlib.pyplot as plt
+from pathlib import Path
 
+
+def plot_training_history(
+    history: dict,
+    best_epoch: int | None = None,
+    save_path: str | Path | None = None,
+    show: bool = True,
+):
+    train_loss = history["train_loss"]
+    val_loss = history["val_loss"]
+
+    epochs = range(1, len(train_loss) + 1)
+
+    plt.figure(figsize=(8, 5))
+
+    plt.plot(
+        epochs,
+        train_loss,
+        label="Training loss",
+    )
+
+    plt.plot(
+        epochs,
+        val_loss,
+        label="Validation loss",
+    )
+
+    if best_epoch is not None:
+        plt.axvline(
+            best_epoch,
+            linestyle="--",
+            label=f"Best epoch ({best_epoch})",
+        )
+
+    plt.xlabel("Epoch")
+    plt.ylabel("MSE loss")
+    plt.title("Training and validation loss")
+    plt.legend()
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+
+    if save_path is not None:
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
 
 def evaluate_predictions(
     pred: np.ndarray,
