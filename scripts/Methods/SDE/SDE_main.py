@@ -5,7 +5,7 @@ import pandas as pd
 import config as cfg
 import SDE_config as sde_cfg
 from notify_phone import notify_phone
-from parameter_estimation import estimate_parameters_mle, wilks_likelihood_ratio_test
+from parameter_estimation import estimate_parameters_mle, wilks_likelihood_ratio_test, estimate_parameters_mle_q_theta
 from PL1 import run_pl1
 from PL2 import run_pl2
 from plotting import(
@@ -26,6 +26,7 @@ def save_sde_checkpoint(
     path,
     theta_hat,
     df_train,
+    Q_hat,
 ):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -49,7 +50,7 @@ def save_sde_checkpoint(
 
         "parameter_names": sde_cfg.PARAMETER_NAMES,
 
-        "Q": sde_cfg.Q,
+        "Q": Q_hat,
         "R": sde_cfg.R,
         "C": sde_cfg.C,
 
@@ -83,7 +84,6 @@ def print_all_metrics(
     Report performance for the open-loop model, EKF prior prediction,
     and EKF posterior state estimate on training and test data.
     """
-
 
     # ------------------------------------------------------------
     # Open-loop grey-box model
@@ -176,7 +176,8 @@ def load_datasets():
     return df_train, df_test
 
 def fit_model(df_train):
-    theta_hat, result = estimate_parameters_mle(df_train)
+    #theta_hat, result = estimate_parameters_mle(df_train)
+    theta_hat, Q_hat, result = estimate_parameters_mle_q_theta(df_train)
 
     if sde_cfg.RUN_TOY_CHECK:
         # For the toy, compare against known truth
@@ -200,10 +201,10 @@ def fit_model(df_train):
         "Function evaluations:",
         result.get("nfev", "n/a"),
     )
-    return theta_hat, result
+    return theta_hat, result, Q_hat
 
 
-def evaluate_ekf(df, theta_hat, name):
+def evaluate_ekf(df, theta_hat, name, Q_hat):
     (
         x_hat,
         P_cov,
@@ -215,7 +216,7 @@ def evaluate_ekf(df, theta_hat, name):
         df=df,
         theta=theta_hat,
         C=sde_cfg.C,
-        Q=sde_cfg.Q,
+        Q=Q_hat,
         R=sde_cfg.R,
     )
 
@@ -249,9 +250,9 @@ def main():
     print(f"Selected model:        {sde_cfg.MODEL_OPTION}")
 
     # -----------------------------------------------------
-    # Fit parameters
+    # Fit parameters using maximum likelihood
     # -----------------------------------------------------
-    theta_hat, result = fit_model(df_train)
+    theta_hat, result ,Q_hat= fit_model(df_train)
 
     # -----------------------------------------------------
     # Save fitted model
@@ -260,6 +261,7 @@ def main():
         path=Path(cfg.DATA_PATH)/"models"/f"{cfg.DS}_{sde_cfg.MODEL_OPTION}_sde.pkl",
         theta_hat=theta_hat,
         df_train=df_train,
+        Q_hat=Q_hat
     )
 
     # -----------------------------------------------------
@@ -270,20 +272,53 @@ def main():
         print("Reference NLL:", nll_ref)
 
         if sde_cfg.RUN_PL1:
-            run_pl1( df_train, theta_hat, nll_ref)
+            run_pl1(
+                df_train,
+                theta_hat,
+                nll_ref,
+                Q_hat
+            )
 
         if sde_cfg.RUN_PL2:
-            run_pl2("C1","R1", df_train, theta_hat, nll_ref)
-            run_pl2("C2","R2", df_train, theta_hat, nll_ref)
+            run_pl2(
+                "C1",
+                "R1",
+                df_train,
+                theta_hat,
+                nll_ref,
+                Q_hat
+            )
+            run_pl2(
+                "C2",
+                "R2",
+                df_train,
+                theta_hat,
+                nll_ref,
+                Q_hat
+            )
 
     # ------------------------------------------------------------
     # Open-loop simulation (no measurement correction)
     # ------------------------------------------------------------
-    x_sim_train = simulate_model(df_train, theta_hat)
-    x_sim_test = simulate_model(df_test, theta_hat)
+    x_sim_train = simulate_model(
+        df_train,
+        theta_hat
+    )
+    x_sim_test = simulate_model(
+        df_test,
+        theta_hat
+    )
 
-    plot_simulated_vs_actual(df_train, x_sim_train, "Training")
-    plot_simulated_vs_actual(df_test, x_sim_test, "Testing")
+    plot_simulated_vs_actual(
+        df_train,
+        x_sim_train,
+        "Training")
+
+    plot_simulated_vs_actual(
+        df_test,
+        x_sim_test,
+        "Testing"
+    )
 
     # -----------------------------------------------------
     # EKF evaluation
@@ -293,12 +328,14 @@ def main():
         df_train,
         theta_hat,
         "training",
+        Q_hat,
     )
 
     test_ekf = evaluate_ekf(
         df_test,
         theta_hat,
         "test",
+        Q_hat,
     )
     # ------------------------------------------------------------
     # Evaluate model performance:
@@ -371,8 +408,14 @@ def main():
         title="Testing: Model vs EKF",
     )
 
-    plot_residuals_vs_time(df_train, x_sim_train, df_test, x_sim_test,
-                           window="6h", title="Open-loop residual")
+    plot_residuals_vs_time(
+        df_train,
+        x_sim_train,
+        df_test,
+        x_sim_test,
+        window="6h",
+        title="Open-loop residual"
+    )
 
     if sde_cfg.RUN_WILKS:
         theta_hat_reduced = theta_hat # Placeholders

@@ -3,20 +3,7 @@ This repository contains the Python implementation developed for the master’s 
 
 ### Unsupervised Machine Learning for Time-Series Anomaly Detection in Maritime Condition-Based Monitoring
 
-The project investigates methods for detecting abnormal behaviour in multivariate ship SCADA data.
-It includes data preprocessing, subsystem grouping, exploratory data analysis, feature engineering,
-grey-box thermal modelling, Extended Kalman Filtering, maximum-likelihood parameter estimation,
-profile likelihood analysis, Markov chain Monte Carlo analysis, Recurrent neural networks,  temporal convolutional networks.
-
-
 #### Project overview
-
-Modern vessels generate large amounts of operational data through their Supervisory Control and Data Acquisition systems.
-These datasets often contain many sensors, limited labels, missing values, irregularities, and operating-condition changes.
-
-The objective of this project is to develop and evaluate practical methods for identifying abnormal
-behaviour in maritime time-series data without relying on complete fault labels.
-
 
 Repository structure
 ## Repository structure

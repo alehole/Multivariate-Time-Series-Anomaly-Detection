@@ -1,28 +1,55 @@
 import numpy as np
 from scipy.optimize import minimize
-from SDE_config import THETA0, LOWER_BOUND, UPPER_BOUND, Q, R, C,PARAMETER_NAMES
+from SDE_config import LOWER_BOUND, UPPER_BOUND, R, C,PARAMETER_NAMES
 from parameter_estimation import neg_log_likelihood
 
-def run_pl2(name_a, name_b, df_train, theta_hat, nll_ref, n_points=25, inner_maxiter=120):
-    i, j = PARAMETER_NAMES.index(name_a), PARAMETER_NAMES.index(name_b)
+def run_pl2(
+        name_a,
+        name_b,
+        df_train,
+        theta_hat,
+        nll_ref,
+        Q_hat,
+        n_points=31,
+        inner_maxiter=120
+):
+    i = PARAMETER_NAMES.index(name_a)
+    j = PARAMETER_NAMES.index(name_b)
 
-    if len(theta_hat) > 2:
-        # 3+ params: fixing 2 leaves free params to re-optimize
-        gi, gj, Z = profile_likelihood_2d(
-            df_train, theta_hat, nll_ref, i, j,
-            n_points=n_points, inner_maxiter=inner_maxiter)
-    else:
-        # exactly 2 params: no free params, evaluate the surface directly
-        gi, gj, Z = likelihood_surface_2d(
-            df_train, theta_hat, nll_ref, i, j)
+    gi, gj, Z = profile_likelihood_2d(
+        df_train,
+        theta_hat,
+        nll_ref,
+        i,
+        j,
+        Q_hat,
+        n_points=n_points,
+        inner_maxiter=inner_maxiter
+    )
 
-    plot_pl2(gi, gj, Z, name_a, name_b, theta_hat[i], theta_hat[j])
+    plot_pl2(
+        gi,
+        gj,
+        Z,
+        name_a,
+        name_b,
+        theta_hat[i],
+        theta_hat[j]
+    )
     return name_a, name_b, gi, gj, Z
 
 
 #EQ 22 in Paper:_ PL2(θi, θj) = min over all other params  g(θ; θi fixed, θj fixed)
-def profile_likelihood_2d(df, theta_hat, nll_ref, i, j,
-                          n_points=15, inner_maxiter=150):
+def profile_likelihood_2d(
+        df,
+        theta_hat,
+        nll_ref,
+        i,
+        j,
+        Q_used,
+        n_points=15,
+        inner_maxiter=150
+):
     """
     PL2: fix parameters i and j on a 2D grid, re-optimize the rest at each
     grid point. Returns (grid_i, grid_j, Z) where Z[a,b] = nll - nll_ref.
@@ -31,9 +58,10 @@ def profile_likelihood_2d(df, theta_hat, nll_ref, i, j,
     lo = np.asarray(LOWER_BOUND, float)
     hi = np.asarray(UPPER_BOUND, float)
     n = len(theta_hat)
+
     PL2_SPANS = {
-        ("C1", "R1"): (0.30, 0.20),
-        ("C2", "R2"): (1.00, 1.00),
+        ("C1", "R1"): (0.20, 0.20),
+        ("C2", "R2"): (0.5, 0.5),
     }
 
     span_i, span_j = PL2_SPANS.get(
@@ -55,24 +83,42 @@ def profile_likelihood_2d(df, theta_hat, nll_ref, i, j,
 
     free = [k for k in range(n) if k not in (i, j)]
     scale = theta_hat[free]
+
     bounds = list(zip(lo[free]/scale, hi[free]/scale))
 
     Z = np.full((n_points, n_points), np.nan)
 
     for a, vi in enumerate(gi):
-        m0 = np.ones(len(free))               # warm-start per row
+        m0 = np.ones(len(free))
         for b, vj in enumerate(gj):
             def obj(m_free):
                 theta = theta_hat.copy()
                 theta[free] = m_free * scale
                 theta[i] = vi
                 theta[j] = vj
-                val = neg_log_likelihood(theta, df, C, Q, R)
+
+                val = neg_log_likelihood(
+                    theta,
+                    df,
+                    C,
+                    Q_used,
+                    R
+                )
+
                 return val if np.isfinite(val) else 1e10
-            res = minimize(obj, m0, method="Powell",
-                           bounds=bounds, options={"maxfev": inner_maxiter})
+
+            res = minimize(
+                obj,
+                m0,
+                method="Powell",
+                bounds=bounds,
+                options={"maxfev": inner_maxiter}
+            )
+
             Z[a, b] = res.fun - nll_ref
-            m0 = res.x                          # warm-start next cell
+
+            m0 = res.x
+
         print(f"PL2 {PARAMETER_NAMES[i]} vs {PARAMETER_NAMES[j]}: row {a+1}/{n_points}")
 
     return gi, gj, Z
@@ -99,16 +145,3 @@ def plot_pl2(gi, gj, Z, name_i, name_j, theta_hat_i, theta_hat_j):
     ax.legend()
     plt.tight_layout()
     plt.show()
-
-def likelihood_surface_2d(df, theta_hat, nll_ref, i, j, n_points=31):
-    lo, hi = np.asarray(LOWER_BOUND, float), np.asarray(UPPER_BOUND, float)
-    gi = np.linspace(0.7*theta_hat[i], 1.3*theta_hat[i], n_points)
-    gj = np.linspace(0.7*theta_hat[j], 1.3*theta_hat[j], n_points)
-    Z = np.full((n_points, n_points), np.nan)
-    for a, vi in enumerate(gi):
-        for b, vj in enumerate(gj):
-            theta = theta_hat.copy()
-            theta[i] = vi; theta[j] = vj
-            val = neg_log_likelihood(theta, df, C, Q, R)
-            Z[a, b] = val - nll_ref
-    return gi, gj, Z

@@ -9,9 +9,9 @@ MODEL_OPTION = "2state_B"
 # ---------------------------------------------------------
 # SDE run configuration
 # ---------------------------------------------------------
-RUN_TOY_CHECK = True
+RUN_TOY_CHECK = False
 RUN_PL1 = True
-RUN_PL2 = False
+RUN_PL2 = True
 RUN_WILKS = False
 
 RESIDUAL_ANOMALY_THRESHOLD = 1.95  # [°C]
@@ -39,8 +39,10 @@ MODEL_CONFIGS = {
         "theta0": np.array([1.15e5, 0.04]),
         "lower_bound": np.array([1.0e4, 0.005]),
         "upper_bound": np.array([1.0e6, 0.5]),
-        "Q": np.diag([0.0001]),
-        "R": np.diag([0.5**2]),
+        #"Q": np.diag([0.0001]),
+        "Q_INIT": np.diag([0.009]),
+        #"R": np.diag([0.5**2]),
+        "R": np.array([[0.0225]]),  # sigma = 0.15 °C
         "C": np.array([[1.0]]),
     },
 
@@ -63,17 +65,17 @@ MODEL_CONFIGS = {
         ]),
         "upper_bound": np.array([
             1e8,  # C1
-            5e8,  # C2
+            5e9,  # C2
             0.5,  # R1
             2.0,  # R2
         ]),
-        "Q": np.diag([
+        "Q_INIT": np.diag([
             0.0001,
             0.0001,
         ]),
         "R": np.diag([
-            0.5 ** 2,  # U-winding sensor
-            0.5 ** 2,  # end-bearing sensor
+            0.02,  # U-winding sensor
+            0.02,  # end-bearing sensor
         ]),
         "C": np.eye(2),
     },
@@ -100,13 +102,13 @@ MODEL_CONFIGS = {
             0.5,  # R1
             2.0,  # R2
         ]),
-        "Q": np.diag([
+        "Q_INIT": np.diag([
             0.0001,
             0.0001,
         ]),
         "R": np.diag([
-            0.5 ** 2,  # U-winding measurement
-            0.5 ** 2,  # End-bearing measurement
+            0.01,  # U-winding measurement
+            0.001,  # End-bearing measurement
         ]),
         "C": np.eye(2),
     },
@@ -120,7 +122,7 @@ PARAMETER_NAMES = selected["parameter_names"]
 THETA0 = selected["theta0"]
 LOWER_BOUND = selected["lower_bound"]
 UPPER_BOUND = selected["upper_bound"]
-Q = selected["Q"]
+Q_INIT = selected["Q_INIT"]
 R = selected["R"]
 C = selected["C"]
 

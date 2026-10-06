@@ -1,14 +1,17 @@
 import numpy as np
 from scipy.optimize import minimize
-from SDE_config import LOWER_BOUND, UPPER_BOUND, Q, R, C,PARAMETER_NAMES
+from SDE_config import LOWER_BOUND, UPPER_BOUND, Q_INIT, R, C,PARAMETER_NAMES
 from parameter_estimation import neg_log_likelihood, minimize_nll
 
-def run_pl1(df_train, theta_hat, nll_ref):
+def run_pl1(df_train, theta_hat, nll_ref, Q):
     ## PL1
     profiles = profile_likelihood_1d(
-        df_train, theta_hat, nll_ref,
-        n_points=41,  # odd number so the optimum sits on a grid point
-        inner_maxiter=150,  # keep inner solves short
+        df_train,
+        theta_hat,
+        nll_ref,
+        n_points=81,
+        inner_maxiter=150,
+        Q=Q,
     )
     import numpy as np
     for name, (grid, rel) in profiles.items():
@@ -17,17 +20,25 @@ def run_pl1(df_train, theta_hat, nll_ref):
         print(f"\n{name}")
         print("Minimum relative likelihood:", np.min(rel[finite]))
         print("Maximum relative likelihood:", np.max(rel[finite]))
-        print(
-            "Grid value at minimum:",
-            grid[finite][np.argmin(rel[finite])]
-        )
+        print("Grid value at minimum:", grid[finite][np.argmin(rel[finite])])
 
-    plot_profile_likelihood(profiles, ndf=1, y_limit=7.5)
+    plot_profile_likelihood(
+        profiles,
+        ndf=1,
+        y_limit=7.5
+    )
+
     return profiles
 
 #EQ 19 in Paper:
-def profile_likelihood_1d(df, theta_hat, nll_ref,
-                          n_points=25, inner_maxiter=300):
+def profile_likelihood_1d(
+        df,
+        theta_hat,
+        nll_ref,
+        n_points=25,
+        inner_maxiter=300,
+        Q=None
+):
     """
     PL1: for each parameter, sweep it across [LOWER, UPPER], re-optimizing
     the remaining parameters at each step. Returns {name: (grid, rel_nll)}
@@ -37,21 +48,34 @@ def profile_likelihood_1d(df, theta_hat, nll_ref,
     theta_hat = np.asarray(theta_hat, float)
     lo = np.asarray(LOWER_BOUND, float)
     hi = np.asarray(UPPER_BOUND, float)
+
     n = len(theta_hat)
     profiles = {}
     '''
+    # For 1 state:
     PL1_SPANS = {
-        "C1": 0.60,
+        "C1": 0.15,
         "C2": 1.00,
-        "R1": 0.25,
+        "R1": 0.15,
         "R2": 1.00,
     }
     '''
+    '''
+    # For 2 state_A:
     PL1_SPANS = {
-        "C1": 0.02,  # ±2 %
-        "C2": 1.00,
-        "R1": 0.005,  # ±0.5 %
-        "R2": 1.00,
+        "C1": 1.0,
+        "C2": 1.0,
+        "R1": 1.0,
+        "R2": 1.0,
+    }
+    '''
+
+    # For 2 state_B:
+    PL1_SPANS = {
+        "C1": 1.0,
+        "C2": 1.0,
+        "R1": 1.0,
+        "R2": 1.0,
     }
 
     for i in range(n):
@@ -69,20 +93,35 @@ def profile_likelihood_1d(df, theta_hat, nll_ref,
         )
 
         rel = np.full(n_points, np.nan)
-        rel = np.full(n_points, np.nan)
 
         free = [j for j in range(n) if j != i]
         scale = theta_hat[free]                 # scale free params by the optimum
         bounds = list(zip(lo[free] / scale, hi[free] / scale))
 
+
         def solve(val, m0):
             def obj(m_free):
+
                 theta = theta_hat.copy()
+
                 theta[free] = m_free * scale
                 theta[i] = val
-                return neg_log_likelihood(theta, df, C, Q, R)
-            res = minimize(obj, m0, method="Powell",
-                           bounds=bounds, options={"maxiter": inner_maxiter})
+
+                return neg_log_likelihood(
+                    theta,
+                    df,
+                    C,
+                    Q,
+                    R
+                )
+
+            res = minimize(
+                obj,
+                m0,
+                method="Powell",
+                bounds=bounds,
+                options={"maxiter": inner_maxiter}
+            )
             return res.fun - nll_ref, res.x
 
         # two-sided sweep outward from the free optimum, warm-starting each step
