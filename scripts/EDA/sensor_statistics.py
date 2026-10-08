@@ -169,6 +169,7 @@ def analyze_folder(
         )
 
         print(f"[OK] {tag}: wrote analysis to {out_dir}")
+
 def write_timestamp_reports(
     input_csv: Path,
     output_dir: Path,

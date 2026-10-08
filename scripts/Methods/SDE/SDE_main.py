@@ -26,7 +26,7 @@ def save_sde_checkpoint(
     path,
     theta_hat,
     df_train,
-    Q_hat,
+    Q_used,
 ):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -50,7 +50,7 @@ def save_sde_checkpoint(
 
         "parameter_names": sde_cfg.PARAMETER_NAMES,
 
-        "Q": Q_hat,
+        "Q": Q_used,
         "R": sde_cfg.R,
         "C": sde_cfg.C,
 
@@ -176,8 +176,11 @@ def load_datasets():
     return df_train, df_test
 
 def fit_model(df_train):
-    #theta_hat, result = estimate_parameters_mle(df_train)
-    theta_hat, Q_hat, result = estimate_parameters_mle_q_theta(df_train)
+    if sde_cfg.ESTIMATE_Q:
+        theta_hat, Q_used, result = estimate_parameters_mle_q_theta(df_train)
+    else:
+        theta_hat, result = estimate_parameters_mle(df_train)
+        Q_used = np.asarray(sde_cfg.Q_INIT, dtype=float).copy()
 
     if sde_cfg.RUN_TOY_CHECK:
         # For the toy, compare against known truth
@@ -201,10 +204,15 @@ def fit_model(df_train):
         "Function evaluations:",
         result.get("nfev", "n/a"),
     )
-    return theta_hat, result, Q_hat
+    return theta_hat, result, Q_used
 
 
-def evaluate_ekf(df, theta_hat, name, Q_hat):
+def evaluate_ekf(
+        df,
+        theta_hat,
+        name,
+        Q_used
+):
     (
         x_hat,
         P_cov,
@@ -216,7 +224,7 @@ def evaluate_ekf(df, theta_hat, name, Q_hat):
         df=df,
         theta=theta_hat,
         C=sde_cfg.C,
-        Q=Q_hat,
+        Q=Q_used,
         R=sde_cfg.R,
     )
 
@@ -252,7 +260,7 @@ def main():
     # -----------------------------------------------------
     # Fit parameters using maximum likelihood
     # -----------------------------------------------------
-    theta_hat, result ,Q_hat= fit_model(df_train)
+    theta_hat, result , Q_used = fit_model(df_train)
 
     # -----------------------------------------------------
     # Save fitted model
@@ -261,7 +269,7 @@ def main():
         path=Path(cfg.DATA_PATH)/"models"/f"{cfg.DS}_{sde_cfg.MODEL_OPTION}_sde.pkl",
         theta_hat=theta_hat,
         df_train=df_train,
-        Q_hat=Q_hat
+        Q_used=Q_used
     )
 
     # -----------------------------------------------------
@@ -276,7 +284,7 @@ def main():
                 df_train,
                 theta_hat,
                 nll_ref,
-                Q_hat
+                Q_used
             )
 
         if sde_cfg.RUN_PL2:
@@ -286,7 +294,7 @@ def main():
                 df_train,
                 theta_hat,
                 nll_ref,
-                Q_hat
+                Q_used
             )
             run_pl2(
                 "C2",
@@ -294,7 +302,7 @@ def main():
                 df_train,
                 theta_hat,
                 nll_ref,
-                Q_hat
+                Q_used
             )
 
     # ------------------------------------------------------------
@@ -328,14 +336,14 @@ def main():
         df_train,
         theta_hat,
         "training",
-        Q_hat,
+        Q_used,
     )
 
     test_ekf = evaluate_ekf(
         df_test,
         theta_hat,
         "test",
-        Q_hat,
+        Q_used,
     )
     # ------------------------------------------------------------
     # Evaluate model performance:

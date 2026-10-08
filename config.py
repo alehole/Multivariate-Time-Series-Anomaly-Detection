@@ -133,3 +133,4 @@ TARGET_COLS = MODEL_CONFIGS[CONFIG]["target_cols"]
 TRAIN_PATH = DATA_PATH / "train_test_split" / f"{DS}_generator_train.csv"
 VAL_PATH = DATA_PATH / "train_test_split" / f"{DS}_generator_val.csv"
 TEST_PATH = DATA_PATH / "train_test_split" / f"{DS}_generator_test.csv"
+

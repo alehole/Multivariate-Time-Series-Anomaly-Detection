@@ -40,7 +40,7 @@ def main():
     # -----------------------------------------------------
     # 1. Select fitted SDE and anomaly dataset
     # -----------------------------------------------------
-    model_path = Path(cfg.DATA_PATH)/"models"/"ds1_1state_sde.pkl"
+    model_path = Path(cfg.DATA_PATH)/"models"/"ds1_2state_B_sde.pkl"
     data_path = Path(cfg.DATA_PATH)
 
     if CALC_THRESHOLDS:
