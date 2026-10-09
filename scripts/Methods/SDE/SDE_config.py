@@ -4,16 +4,16 @@ import config as cfg
 # ---------------------------------------------------------
 # SDE model selection
 # ---------------------------------------------------------
-MODEL_OPTION = "2state_B"
+MODEL_OPTION = "1state"
 
 # ---------------------------------------------------------
 # SDE run configuration
 # ---------------------------------------------------------
 RUN_TOY_CHECK = False
-RUN_PL1 = True
-RUN_PL2 = True
+RUN_PL1 = False
+RUN_PL2 = False
 RUN_WILKS = False
-ESTIMATE_Q = False
+ESTIMATE_Q = True
 
 RESIDUAL_ANOMALY_THRESHOLD = 1.95  # [°C]
 MAXITER = 2000
@@ -41,6 +41,7 @@ MODEL_CONFIGS = {
         "lower_bound": np.array([1.0e4, 0.005]),
         "upper_bound": np.array([1.0e6, 0.5]),
         #"Q": np.diag([0.0001]),
+        #"Q_INIT": np.diag([0.009]),
         "Q_INIT": np.diag([0.009]),
         #"R": np.diag([0.5**2]),
         "R": np.array([[0.0225]]),  # sigma = 0.15 °C
@@ -106,6 +107,8 @@ MODEL_CONFIGS = {
         "Q_INIT": np.diag([
             0.0001,
             0.0001,
+            #4.0000,
+            #4.0000,
         ]),
         "R": np.diag([
             0.01,  # U-winding measurement

@@ -3,7 +3,24 @@ import torch.nn.functional as F
 #https://medium.com/@sahin.samia/mastering-the-basics-of-torch-nn-a-comprehensive-guide-to-pytorchs-neural-network-module-9f2d704e8c7f
 #https://github.com/locuslab/TCN/tree/master/TCN
 #https://arxiv.org/pdf/1803.01271
+
+"""Temporal Convolutional Network (TCN) baseline.
+
+A TCN is a 1D convolutional network for sequences with three defining traits:
+  1. Causal convolutions  - the output at time t only sees inputs at t and earlier (current input and past input).
+  2. Dilated convolutions - dilation doubles per block, so the receptive field
+                            grows exponentially with depth.
+  3. Residual blocks      - skip connections keep deeper stacks trainable.
+"""
+
+
 class TemporalBlock(nn.Module):
+    """One residual block: two causal dilated convolutions plus a skip connection.
+
+    Input:  (batch, in_channels,  time)
+    Output: (batch, out_channels, time)
+    """
+
     def __init__(
         self,
         in_channels,
@@ -17,7 +34,7 @@ class TemporalBlock(nn.Module):
         # left-padding amount for causal convolution
         self.pad = (kernel_size - 1) * dilation
 
-        # Dilated convolutions
+        # Two Dilated convolutions per block
         self.conv1 = nn.Conv1d(
             in_channels,
             out_channels,

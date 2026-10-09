@@ -1,5 +1,9 @@
 import pandas as pd
 from pathlib import Path
+import itertools
+import random
+import torch
+import sys
 
 from Methods.Blackbox.sequence_model_training import train_sequence_model
 from Methods.Blackbox.RNN.RNN import RNNBaseline
@@ -8,6 +12,8 @@ from Methods.Blackbox.experiment_configs import (
     RNN_MODEL_TYPE,
     TRAINING_CONFIG,
     WINDOW_STEPS,
+    RNN_SEARCH_SPACE,
+    TRAINING_SEARCH_SPACE,
 )
 from scripts.misc.feature_engineering import ts_cols
 from Methods.Blackbox.profile_dataset import (
@@ -48,6 +54,127 @@ def load_and_prepare_data(
 
     return data, dt_s
 
+def random_search_rnn(
+    x_train,
+    y_train,
+    mask_train,
+    x_val,
+    y_val,
+    mask_val,
+    n_trials=20,
+    seed=42,
+):
+    """
+    Randomly evaluate a subset of the discrete hyperparameter grid.
+    Hyperparameters are selected using validation loss only.
+    """
+
+    # Combine architecture and training hyperparameters
+    search_space = {
+        **RNN_SEARCH_SPACE,
+        **TRAINING_SEARCH_SPACE,
+    }
+
+    keys = list(search_space.keys())
+
+    combinations = list(
+        itertools.product(
+            *[search_space[key] for key in keys]
+        )
+    )
+
+    rng = random.Random(seed)
+    rng.shuffle(combinations)
+
+    combinations = combinations[
+        :min(n_trials, len(combinations))
+    ]
+
+    results = []
+
+    # ---------------------------------------------------------
+    # Hyperparameter trials
+    # ---------------------------------------------------------
+    for trial, values in enumerate(combinations, start=1):
+
+        params = dict(zip(keys, values))
+
+        print(
+            f"\n{'=' * 60}\n"
+            f"Trial {trial}/{len(combinations)}\n"
+            f"{params}\n"
+            f"{'=' * 60}"
+        )
+
+        # Use a deterministic but different seed per trial
+        set_reproducibility(seed)
+
+        model_config = {
+            **RNN_MODEL_CONFIG,
+            "hidden_size": params["hidden_size"],
+            "num_layers": params["num_layers"],
+            "dropout": params["dropout"],
+        }
+
+        training_config = {
+            **TRAINING_CONFIG,
+            "lr": params["lr"],
+            "weight_decay": params["weight_decay"],
+        }
+
+        model = RNNBaseline(
+            **model_config
+        ).to(cfg.DEVICE)
+
+        model, history = train_sequence_model(
+            model=model,
+            x_train=x_train,
+            y_train=y_train,
+            mask_train=mask_train,
+            x_val=x_val,
+            y_val=y_val,
+            mask_val=mask_val,
+            **training_config,
+        )
+
+        # Best validation loss obtained during training
+        best_val_loss = float(min(history["val_loss"]))
+
+        results.append({
+            **params,
+            "best_val_loss": best_val_loss,
+        })
+
+        print(
+            f"Best validation loss: "
+            f"{best_val_loss:.6f}"
+        )
+
+        # Free GPU memory before next trial
+        del model
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    # ---------------------------------------------------------
+    # Rank configurations
+    # ---------------------------------------------------------
+    results = pd.DataFrame(results)
+
+    results = results.sort_values(
+        "best_val_loss"
+    ).reset_index(drop=True)
+
+    print("\nHyperparameter search results:")
+    print(results)
+
+    best = results.iloc[0].to_dict()
+
+    print("\nBest configuration:")
+    print(best)
+
+    return results, best
+
 def main():
     set_reproducibility(cfg.SEED)
     model_config = cfg.CONFIG
@@ -66,6 +193,8 @@ def main():
     test_data, test_dt_s = load_and_prepare_data(test_path)
 
     dt_s = train_dt_s  # sampling interval (same across splits)
+
+
 
     # -----------------------------------------------------
     # Profile each split independently
@@ -142,6 +271,26 @@ def main():
     print(f"x_train shape: {tuple(x_train.shape)}")
     print(f"x_val shape:   {tuple(x_val.shape)}")
     print(f"x_test shape:  {tuple(x_test.shape)}")
+    # -----------------------------------------------------
+    # Random grid search
+    # -----------------------------------------------------
+    GRID_SEARCH=True
+    if GRID_SEARCH:
+        search_results, best = random_search_rnn(
+            x_train=x_train,
+            y_train=y_train,
+            mask_train=mask_train,
+            x_val=x_val,
+            y_val=y_val,
+            mask_val=mask_val,
+            n_trials=100,
+            seed=cfg.SEED,
+        )
+        search_results.to_csv(
+            "rnn_hyperparameter_search.csv",
+            index=False,
+        )
+        sys.exit(0)
 
     # -----------------------------------------------------
     # Model

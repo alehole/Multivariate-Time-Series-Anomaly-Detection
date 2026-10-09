@@ -1,13 +1,14 @@
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import itertools
+import random
+import sys
 
 import config as cfg
-
 from Methods.Blackbox.profile_dataset import (
     create_profiles,
     scale_train_val_test_data,
@@ -16,6 +17,7 @@ from Methods.Blackbox.profile_dataset import (
 from Methods.TNN.experiment_configs import (
     TNN_MODEL_TYPE,
     TNN_TRAINING_CONFIG,
+    TNN_SEARCH_SPACE,
     WINDOW_STEPS,
 )
 from Methods.TNN.tnn_model import build_model
@@ -331,21 +333,13 @@ def evaluate_tnn(
     target_cols: list[str],
     y_scaler,
 ):
-    pred_c, y_true_scaled, pair_mask = predict_tnn(
-        model,
-        test_tensor,
-        test_mask,
-        input_cols,
-        target_cols,
-        y_scaler,
-    )
 
     pred_c, y_true_scaled, pair_mask = predict_tnn(
         model=model,
         sequence_tensor=test_tensor,
         sequence_mask=test_mask,
-        input_cols=cfg.INPUT_COLS,
-        target_cols=cfg.TARGET_COLS,
+        input_cols=input_cols,
+        target_cols=target_cols,
         y_scaler=y_scaler,
     )
 
@@ -409,6 +403,138 @@ def save_tnn(
 
     torch.save(checkpoint, path)
     print(f"TNN model saved to {path}")
+
+def random_search_tnn(
+    train_tensor,
+    train_mask,
+    val_tensor,
+    val_mask,
+    input_cols,
+    target_cols,
+    temperature_cols,
+    cooling_columns,
+    dt_s,
+    n_trials=20,
+    seed=42,
+):
+    """
+    Randomly evaluate a subset of the discrete TNN hyperparameter grid.
+
+    Hyperparameters are selected using validation loss only.
+    """
+
+    keys = list(TNN_SEARCH_SPACE.keys())
+
+    # Construct all possible hyperparameter combinations
+    combinations = list(
+        itertools.product(
+            *[TNN_SEARCH_SPACE[key] for key in keys]
+        )
+    )
+
+    # Reproducibly shuffle the full grid
+    rng = random.Random(seed)
+    rng.shuffle(combinations)
+
+    print(
+        f"Total possible configurations: {len(combinations)}\n"
+        f"Configurations evaluated: {min(n_trials, len(combinations))}"
+    )
+
+    # Evaluate only a random subset
+    combinations = combinations[
+        :min(n_trials, len(combinations))
+    ]
+
+    results = []
+
+    # ---------------------------------------------------------
+    # Hyperparameter trials
+    # ---------------------------------------------------------
+    for trial, values in enumerate(combinations, start=1):
+
+        params = dict(zip(keys, values))
+
+        print(
+            f"\n{'=' * 60}\n"
+            f"Trial {trial}/{len(combinations)}\n"
+            f"{params}\n"
+            f"{'=' * 60}"
+        )
+
+        # Same random seed for each configuration
+        set_reproducibility(seed)
+
+        # Combine defaults with the parameters being tested
+        training_config = {
+            **TNN_TRAINING_CONFIG,
+            **params,
+        }
+
+        # n_neurons determines model architecture
+        model = build_model(
+            dt_s=dt_s,
+            input_cols=input_cols,
+            target_cols=target_cols,
+            temperature_cols=temperature_cols,
+            device=cfg.DEVICE,
+            cooling_columns=cooling_columns,
+            n_neurons=training_config["n_neurons"],
+        )
+
+        # Remaining parameters control optimisation/training
+        model, history, best_epoch, best_val_loss = train_tnn(
+            model=model,
+            train_tensor=train_tensor,
+            train_mask=train_mask,
+            val_tensor=val_tensor,
+            val_mask=val_mask,
+            input_cols=input_cols,
+            target_cols=target_cols,
+            dt_s=dt_s,
+            **{
+                key: value
+                for key, value in training_config.items()
+                if key != "n_neurons"
+            },
+        )
+
+        results.append({
+            "trial": trial,
+            "seed": seed,
+            **params,
+            "best_epoch": best_epoch,
+            "best_val_loss": float(best_val_loss),
+        })
+
+        print(
+            f"Best validation loss: {best_val_loss:.6f} "
+            f"(epoch {best_epoch})"
+        )
+
+        del model
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    # ---------------------------------------------------------
+    # Rank configurations
+    # ---------------------------------------------------------
+    results = pd.DataFrame(results)
+
+    results = results.sort_values(
+        "best_val_loss"
+    ).reset_index(drop=True)
+
+    print("\nHyperparameter search results:")
+    print(results)
+
+    best = results.iloc[0].to_dict()
+
+    print("\nBest configuration:")
+    print(best)
+
+    return results, best
 
 def main():
     set_reproducibility(cfg.SEED)
@@ -502,6 +628,36 @@ def main():
     print("Targets:", cfg.TARGET_COLS)
     print("Thermal nodes:", temperature_cols)
     print("Cooling columns:", cooling_columns)
+
+    # -----------------------------------------------------
+    # Random hyperparameter search
+    # -----------------------------------------------------
+    GRID_SEARCH = True
+
+    if GRID_SEARCH:
+        search_results, best = random_search_tnn(
+            train_tensor=train_tensor,
+            train_mask=train_mask,
+            val_tensor=val_tensor,
+            val_mask=val_mask,
+            input_cols=cfg.INPUT_COLS,
+            target_cols=cfg.TARGET_COLS,
+            temperature_cols=temperature_cols,
+            cooling_columns=cooling_columns,
+            dt_s=dt_s,
+            n_trials=100,
+            seed=cfg.SEED,
+        )
+
+        search_results.to_csv(
+            f"{cfg.DS}_{cfg.CONFIG}_tnn_hyperparameter_search.csv",
+            index=False,
+        )
+
+        sys.exit(0)
+
+
+
     # -----------------------------------------------------
     # Model
     # -----------------------------------------------------
