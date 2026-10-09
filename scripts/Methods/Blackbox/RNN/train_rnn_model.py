@@ -281,7 +281,7 @@ def main():
             x_val=x_val,
             y_val=y_val,
             mask_val=mask_val,
-            n_trials=2,
+            n_trials=100,
             seed=cfg.SEED,
         )
         search_results.to_csv(

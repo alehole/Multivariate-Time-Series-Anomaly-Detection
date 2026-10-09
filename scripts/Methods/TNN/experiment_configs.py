@@ -16,12 +16,12 @@ TNN_SEARCH_SPACE = {
     "tbptt_size": [64, 128, 256, 512],
 }
 
-TNN_BEST_CONFIG = {
+TNN_TRAINING_CONFIG = {
     "n_epochs": 300,
     "lr": 0.03,
     "tbptt_size": 128,
-    "weight_decay": 0.01,
-    "n_neurons": 512,
-    "best_val_loss": 0.05405641347169876,
-    "best_epoch": 238.0,
+    "weight_decay": 0.0001,
+    "n_neurons": 256,
 }
+
+
