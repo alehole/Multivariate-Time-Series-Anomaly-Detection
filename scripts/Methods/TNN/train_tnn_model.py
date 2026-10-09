@@ -645,7 +645,7 @@ def main():
             temperature_cols=temperature_cols,
             cooling_columns=cooling_columns,
             dt_s=dt_s,
-            n_trials=100,
+            n_trials=2,
             seed=cfg.SEED,
         )
 

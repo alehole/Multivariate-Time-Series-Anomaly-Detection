@@ -9,11 +9,10 @@ from Methods.Blackbox.sequence_model_training import train_sequence_model
 from Methods.Blackbox.TCN.TCN import TCNBaseline
 from Methods.Blackbox.experiment_configs import (
     TCN_MODEL_CONFIG,
-    TRAINING_CONFIG,
+    TCN_TRAINING_CONFIG,
     WINDOW_STEPS,
     TCN_MODEL_TYPE,
     TCN_SEARCH_SPACE,
-    TRAINING_SEARCH_SPACE,
 )
 from scripts.misc.feature_engineering import ts_cols
 from Methods.Blackbox.profile_dataset import (
@@ -49,7 +48,6 @@ def random_search_tcn(
     # Combine architecture and training hyperparameters
     search_space = {
         **TCN_SEARCH_SPACE,
-        **TRAINING_SEARCH_SPACE,
     }
 
     keys = list(search_space.keys())
@@ -97,7 +95,7 @@ def random_search_tcn(
         }
 
         training_config = {
-            **TRAINING_CONFIG,
+            **TCN_TRAINING_CONFIG,
             "lr": params["lr"],
             "weight_decay": params["weight_decay"],
         }
@@ -114,7 +112,7 @@ def random_search_tcn(
             x_val=x_val,
             y_val=y_val,
             mask_val=mask_val,
-            **training_config,
+            **TCN_TRAINING_CONFIG,
         )
 
         # Lowest validation loss obtained during training
@@ -243,7 +241,7 @@ def main():
             x_val=x_val,
             y_val=y_val,
             mask_val=mask_val,
-            n_trials=100,
+            n_trials=2,
             seed=cfg.SEED,
         )
 
@@ -265,7 +263,7 @@ def main():
         model=model,
         x_train=x_train, y_train=y_train, mask_train=mask_train,
         x_val=x_val, y_val=y_val, mask_val=mask_val,
-        **TRAINING_CONFIG,
+        **TCN_TRAINING_CONFIG,
     )
 
     # -----------------------------------------------------
@@ -301,7 +299,7 @@ def main():
         x_scaler=x_scaler, y_scaler=y_scaler,
         input_cols=cfg.INPUT_COLS, target_cols=cfg.TARGET_COLS,
         model_type=TCN_MODEL_TYPE, model_config=TCN_MODEL_CONFIG,
-        training_config={**TRAINING_CONFIG, "seed": cfg.SEED},
+        training_config={**TCN_TRAINING_CONFIG, "seed": cfg.SEED},
         dt_s=dt_s,
         path=f"{cfg.DS}_{model_config}_tcn_winding_baseline.pt",
         history=history,

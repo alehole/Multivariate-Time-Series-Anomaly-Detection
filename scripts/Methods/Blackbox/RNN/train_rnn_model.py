@@ -10,10 +10,9 @@ from Methods.Blackbox.RNN.RNN import RNNBaseline
 from Methods.Blackbox.experiment_configs import (
     RNN_MODEL_CONFIG,
     RNN_MODEL_TYPE,
-    TRAINING_CONFIG,
+    RNN_TRAINING_CONFIG,
     WINDOW_STEPS,
     RNN_SEARCH_SPACE,
-    TRAINING_SEARCH_SPACE,
 )
 from scripts.misc.feature_engineering import ts_cols
 from Methods.Blackbox.profile_dataset import (
@@ -72,7 +71,6 @@ def random_search_rnn(
     # Combine architecture and training hyperparameters
     search_space = {
         **RNN_SEARCH_SPACE,
-        **TRAINING_SEARCH_SPACE,
     }
 
     keys = list(search_space.keys())
@@ -117,7 +115,7 @@ def random_search_rnn(
         }
 
         training_config = {
-            **TRAINING_CONFIG,
+            **RNN_TRAINING_CONFIG,
             "lr": params["lr"],
             "weight_decay": params["weight_decay"],
         }
@@ -134,7 +132,7 @@ def random_search_rnn(
             x_val=x_val,
             y_val=y_val,
             mask_val=mask_val,
-            **training_config,
+            **RNN_TRAINING_CONFIG,
         )
 
         # Best validation loss obtained during training
@@ -283,7 +281,7 @@ def main():
             x_val=x_val,
             y_val=y_val,
             mask_val=mask_val,
-            n_trials=100,
+            n_trials=2,
             seed=cfg.SEED,
         )
         search_results.to_csv(
@@ -310,7 +308,7 @@ def main():
         x_val=x_val,
         y_val=y_val,
         mask_val=mask_val,
-        **TRAINING_CONFIG,
+        **RNN_TRAINING_CONFIG,
     )
 
     # -----------------------------------------------------
@@ -355,7 +353,7 @@ def main():
         model_type=RNN_MODEL_TYPE,
         model_config=RNN_MODEL_CONFIG,
         training_config={
-            **TRAINING_CONFIG,
+            **RNN_TRAINING_CONFIG,
             "seed": cfg.SEED,
         },
         dt_s=dt_s,
