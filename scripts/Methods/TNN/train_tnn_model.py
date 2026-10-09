@@ -138,7 +138,6 @@ def train_tnn(
     tbptt_size: int,
     lr: float,
     weight_decay: float,
-    smoothness_weight: float,
 ):
     """Train on TRAIN and restore the epoch with the lowest VALIDATION MSE."""
 
@@ -214,32 +213,7 @@ def train_tnn(
             ).clamp(min=1.0)
             prediction_loss = point_loss.sum() / denom
 
-            if y_hat.shape[1] > 1:
-                transition_mask = m[:, 1:] & m[:, :-1]
-                transition_mask_f = transition_mask.unsqueeze(-1).to(
-                    dtype=y_hat.dtype,
-                    device=y_hat.device,
-                )
-
-                dy = (
-                    y_hat[:, 1:] - y_hat[:, :-1]
-                ) / dt_s
-
-                trend_denom = (
-                    transition_mask_f.sum()
-                    * n_out
-                ).clamp(min=1.0)
-
-                trend_penalty = (
-                    dy.pow(2) * transition_mask_f
-                ).sum() / trend_denom
-            else:
-                trend_penalty = y_hat.new_tensor(0.0)
-
-            loss = (
-                prediction_loss
-                + smoothness_weight * trend_penalty
-            )
+            loss = prediction_loss
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(
@@ -645,7 +619,7 @@ def main():
             temperature_cols=temperature_cols,
             cooling_columns=cooling_columns,
             dt_s=dt_s,
-            n_trials=2,
+            n_trials=20,
             seed=cfg.SEED,
         )
 
