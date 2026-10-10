@@ -132,7 +132,7 @@ def random_search_rnn(
             x_val=x_val,
             y_val=y_val,
             mask_val=mask_val,
-            **RNN_TRAINING_CONFIG,
+            **training_config,
         )
 
         # Best validation loss obtained during training

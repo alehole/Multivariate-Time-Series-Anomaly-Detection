@@ -17,7 +17,6 @@ WINDOW_STEPS = 300
 # ---------------------------------------------------------
 TCN_MODEL_TYPE = "TCN"
 
-
 TCN_MODEL_CONFIG = { # used when grid search = false
     "input_size": len(cfg.INPUT_COLS),
     "output_size": len(cfg.TARGET_COLS),
@@ -25,6 +24,7 @@ TCN_MODEL_CONFIG = { # used when grid search = false
     "kernel_size": 3,
     "dropout": 0.1,
 }
+
 TCN_TRAINING_CONFIG = { # used when grid search = false
     **COMMON_TRAINING_CONFIG,
     "lr": 3e-3,
@@ -67,6 +67,7 @@ RNN_MODEL_CONFIG = { # used when grid search = false
     "dropout": 0.1,
     "model_type": RNN_MODEL_TYPE,
 }
+
 RNN_TRAINING_CONFIG = { # used when grid search = false
     **COMMON_TRAINING_CONFIG,
     "lr": 1e-3,
@@ -105,7 +106,6 @@ RNN_BEST_CONFIG = {
     "lr": 0.001,
     "weight_decay": 0.0001,
     "model_type": RNN_MODEL_TYPE,
-    'best_val_loss': 0.07345976680517197
 }
 
 TCN_BEST_CONFIG = {
@@ -116,5 +116,4 @@ TCN_BEST_CONFIG = {
     "dropout": 0.0,
     'lr': 0.003,
     'weight_decay': 0.0001,
-    'best_val_loss': 0.0636480301618576,
 }

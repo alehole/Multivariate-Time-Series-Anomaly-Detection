@@ -112,7 +112,7 @@ def random_search_tcn(
             x_val=x_val,
             y_val=y_val,
             mask_val=mask_val,
-            **TCN_TRAINING_CONFIG,
+            **training_config,
         )
 
         # Lowest validation loss obtained during training
