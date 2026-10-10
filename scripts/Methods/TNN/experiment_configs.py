@@ -1,6 +1,7 @@
 WINDOW_STEPS = 300
 TNN_MODEL_TYPE = "TNN"
 
+'''
 TNN_TRAINING_CONFIG = {
     "n_epochs": 300,
     "lr": 0.1,
@@ -8,6 +9,7 @@ TNN_TRAINING_CONFIG = {
     "weight_decay": 0.001,
     "n_neurons": 512,
 }
+'''
 
 TNN_SEARCH_SPACE = {
     "n_neurons": [128, 256, 512, 1024],
@@ -16,12 +18,12 @@ TNN_SEARCH_SPACE = {
     "tbptt_size": [64, 128, 256, 512],
 }
 
-TNN_BEST_CONFIG = {
+TNN_TRAINING_CONFIG = {
     "n_epochs": 300,
     "lr": 0.03,
-    "tbptt_size": 128,
-    "weight_decay": 0.0001,
-    "n_neurons": 256,
+    "tbptt_size": 64,
+    "weight_decay": 0.001,
+    "n_neurons": 512,
 }
 
 

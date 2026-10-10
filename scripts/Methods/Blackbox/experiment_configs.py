@@ -10,25 +10,23 @@ COMMON_TRAINING_CONFIG = {
 
 WINDOW_STEPS = 300
 
-
-
-# ---------------------------------------------------------
-# TCN configuration
-# ---------------------------------------------------------
+# =========================================================
+# TCN
+# =========================================================
 TCN_MODEL_TYPE = "TCN"
 
-TCN_MODEL_CONFIG = { # used when grid search = false
+TCN_MODEL_CONFIG = {
     "input_size": len(cfg.INPUT_COLS),
     "output_size": len(cfg.TARGET_COLS),
-    "channels": (32, 64, 64, 64, 64),
-    "kernel_size": 3,
-    "dropout": 0.1,
+    "channels": (32, 64, 64, 64),
+    "kernel_size": 5,
+    "dropout": 0.3,
 }
 
-TCN_TRAINING_CONFIG = { # used when grid search = false
+TCN_TRAINING_CONFIG = {
     **COMMON_TRAINING_CONFIG,
-    "lr": 3e-3,
-    "weight_decay": 1e-4,
+    "lr": 0.003,
+    "weight_decay": 1e-5,
 }
 
 TCN_SEARCH_SPACE = {
@@ -54,24 +52,25 @@ TCN_SEARCH_SPACE = {
     ],
 }
 
-# ---------------------------------------------------------
-# RNN / LSTM
-# ---------------------------------------------------------
-RNN_MODEL_TYPE = "LSTM" # "LSTM" or "GRU"
 
-RNN_MODEL_CONFIG = { # used when grid search = false
+# =========================================================
+# LSTM
+# =========================================================
+RNN_MODEL_TYPE = "LSTM"
+
+RNN_MODEL_CONFIG = {
     "input_size": len(cfg.INPUT_COLS),
     "output_size": len(cfg.TARGET_COLS),
     "hidden_size": 128,
-    "num_layers": 2,
+    "num_layers": 3,
     "dropout": 0.1,
     "model_type": RNN_MODEL_TYPE,
 }
 
-RNN_TRAINING_CONFIG = { # used when grid search = false
+RNN_TRAINING_CONFIG = {
     **COMMON_TRAINING_CONFIG,
-    "lr": 1e-3,
-    "weight_decay": 1e-4,
+    "lr": 0.003,
+    "weight_decay": 0.0,
 }
 
 RNN_SEARCH_SPACE = {
@@ -90,30 +89,4 @@ RNN_SEARCH_SPACE = {
         1e-4,
         1e-3,
     ],
-}
-
-
-
-##
-##
-## Best configs
-RNN_BEST_CONFIG = {
-    "input_size": len(cfg.INPUT_COLS),
-    "output_size": len(cfg.TARGET_COLS),
-    "hidden_size": 256,
-    "num_layers": 2,
-    "dropout": 0.3,
-    "lr": 0.001,
-    "weight_decay": 0.0001,
-    "model_type": RNN_MODEL_TYPE,
-}
-
-TCN_BEST_CONFIG = {
-    "input_size": len(cfg.INPUT_COLS),
-    "output_size": len(cfg.TARGET_COLS),
-    "channels": (64, 64, 128, 128),
-    "kernel_size": 3,
-    "dropout": 0.0,
-    'lr': 0.003,
-    'weight_decay': 0.0001,
 }

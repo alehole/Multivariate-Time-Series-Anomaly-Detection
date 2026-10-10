@@ -3,13 +3,11 @@ import subprocess
 import sys
 import time
 
-
 SCRIPTS = [
     Path("Blackbox/RNN/train_rnn_model.py"),
     Path("Blackbox/TCN/train_tcn_model.py"),
     Path("TNN/train_tnn_model.py"),
 ]
-
 
 def main():
     total_start = time.time()
@@ -49,7 +47,6 @@ def main():
     print("=" * 70)
 
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
