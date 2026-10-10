@@ -286,9 +286,8 @@ def main():
             seed=cfg.SEED,
         )
         search_results.to_csv(
-            "rnn_hyperparameter_search.csv",
-            index=False,
-        )
+            "rnn_hyperparameter_search.csv", index=False)
+
         sys.exit(0)
 
     # -----------------------------------------------------

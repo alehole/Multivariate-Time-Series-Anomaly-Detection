@@ -13,8 +13,11 @@ DATA_PATH = BASE_PROJ_DIR.parent / "data"
 DS1_RAW = DATA_PATH /"raw" / "DS1"/"LiveData.csv"
 DS2_RAW = DATA_PATH /"raw" / "DS2"/"LiveData.csv"
 
-DS1_CATEGORIZED_DIR = DATA_PATH / "raw_categorized" / "DS1"
-DS2_CATEGORIZED_DIR = DATA_PATH / "raw_categorized" / "DS2"
+#DS1_CATEGORIZED_DIR = DATA_PATH / "raw_categorized" / "DS1"
+#DS2_CATEGORIZED_DIR = DATA_PATH / "raw_categorized" / "DS2"
+
+DS1_CATEGORIZED_DIR = DATA_PATH / "raw_categorized" / "DS1_test"
+DS2_CATEGORIZED_DIR = DATA_PATH / "raw_categorized" / "DS2_test"
 
 # ---------------------------------------------------------
 # Runtime configuration
@@ -26,7 +29,7 @@ SEED = 42
 TS_COL = "Created"
 
 DS = "ds1"
-CONFIG = "MC1"
+CONFIG = "MC4"
 GRID_SEARCH = True
 
 # ---------------------------------------------------------

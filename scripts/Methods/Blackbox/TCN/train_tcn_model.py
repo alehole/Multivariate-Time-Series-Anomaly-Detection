@@ -244,10 +244,7 @@ def main():
             seed=cfg.SEED,
         )
 
-        search_results.to_csv(
-            f"{cfg.DS}_{cfg.CONFIG}_tcn_hyperparameter_search.csv",
-            index=False,
-        )
+        search_results.to_csv("tcn_hyperparameter_search.csv", index=False)
         sys.exit(0)
 
     # -----------------------------------------------------

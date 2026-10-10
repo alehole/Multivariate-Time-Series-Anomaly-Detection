@@ -1,6 +1,7 @@
 import pandas as pd
 from pathlib import Path
 import config as cfg
+import numpy as np
 
 def constant_datapoints(df):
     constant = df.columns[df.nunique(dropna=False) == 1].tolist()
@@ -113,21 +114,40 @@ def numeric_columns(
     num_df = df_num[selected_columns].copy()
     return num_df
 
-def categorize_dataset(raw_csv, out_dir, prefix):
+def categorize_dataset(
+        raw_csv,
+        out_dir,
+        prefix
+):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
     print("")
     print(f"Reading dataset from {prefix}:")
     df = pd.read_csv(raw_csv, sep=",")
     print(f"Dataset shape: {df.shape}")
 
-    # Detect and store constant variables
+    # Detect constant variables
     constant_cols = constant_datapoints(df)
 
-    pd.DataFrame({"constant_columns": constant_cols}).to_csv(
-        out_dir / f"{prefix}_CONSTANT.csv",
-        index=False,
-    )
+    # Store constant column names and their values
+    constant_data = []
+
+    for col in constant_cols:
+        non_null = df[col].dropna()
+
+        if len(non_null) > 0:
+            value = non_null.iloc[0]
+        else:
+            value = np.nan
+
+        constant_data.append({
+            "constant_column": col,
+            "constant_value": value,
+            "dtype": str(df[col].dtype),
+        })
+
+    pd.DataFrame({"constant_columns": constant_cols}).to_csv(out_dir / f"{prefix}_CONSTANT.csv",index=False)
 
     # Drop constant variables
     df = df.drop(columns=constant_cols)
@@ -161,7 +181,6 @@ def main():
         out_dir=cfg.DS2_CATEGORIZED_DIR,
         prefix="DS2",
     )
-
 
 if __name__ == "__main__":
     main()
