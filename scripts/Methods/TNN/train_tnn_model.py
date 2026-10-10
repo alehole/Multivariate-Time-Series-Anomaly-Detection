@@ -606,9 +606,8 @@ def main():
     # -----------------------------------------------------
     # Random hyperparameter search
     # -----------------------------------------------------
-    GRID_SEARCH = True
 
-    if GRID_SEARCH:
+    if cfg.GRID_SEARCH:
         search_results, best = random_search_tnn(
             train_tensor=train_tensor,
             train_mask=train_mask,

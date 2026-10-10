@@ -10,35 +10,50 @@ def create_profiles(
     *,
     window_steps: int = 300,
     dt_s: float = 60.0,
+    gap_factor: float = 3.0,
 ) -> tuple[pd.DataFrame, list[int]]:
     """
-    Divide one dataframe into fixed-duration sequence profiles.
+    Divide dataframe into fixed-length sequence profiles.
 
-    This function does not perform a train/test split.
+    Profiles are also split whenever a timestamp gap exceeds
+    gap_factor * dt_s.
     """
+
     df = df.copy()
 
     if ts_col not in df.columns:
         raise KeyError(f"{ts_col} not found in dataframe.")
 
-    df[ts_col] = pd.to_datetime(
-        df[ts_col],
-        errors="coerce",
-        utc=True,
-    )
+    df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce", utc=True)
+    df = df.dropna(subset=[ts_col]).sort_values(ts_col).reset_index(drop=True)
 
-    df = (
-        df.dropna(subset=[ts_col])
-        .sort_values(ts_col)
-        .reset_index(drop=True)
-    )
+    # -----------------------------------------------------
+    # Detect discontinuities
+    # -----------------------------------------------------
+    delta_t = df[ts_col].diff().dt.total_seconds()
+    gap_threshold = gap_factor * dt_s
+    new_segment = delta_t.isna() | (delta_t > gap_threshold)
 
-    t0 = df[ts_col].min()
-    window_s = window_steps * dt_s
+    df["_segment_id"] = new_segment.cumsum() - 1
 
-    df["profile_id"] = (
-        (df[ts_col] - t0).dt.total_seconds() // window_s
-    ).astype("int64")
+    # -----------------------------------------------------
+    # Make fixed-length profiles within each segment
+    # -----------------------------------------------------
+    profile_ids = np.empty(len(df), dtype=np.int64)
+    next_profile_id = 0
+
+    for _, segment in df.groupby("_segment_id", sort=False):
+
+        indices = segment.index.to_numpy()
+
+        for start in range(0, len(indices), window_steps):
+            idx = indices[start:start + window_steps]
+
+            profile_ids[idx] = next_profile_id
+            next_profile_id += 1
+
+    df["profile_id"] = profile_ids
+    df = df.drop(columns="_segment_id")
 
     profiles = sorted(df["profile_id"].unique())
 

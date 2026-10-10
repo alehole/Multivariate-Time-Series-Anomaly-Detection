@@ -231,9 +231,8 @@ def main():
     # -----------------------------------------------------
     # Random hyperparameter search
     # -----------------------------------------------------
-    GRID_SEARCH = True
 
-    if GRID_SEARCH:
+    if cfg.GRID_SEARCH:
         search_results, best = random_search_tcn(
             x_train=x_train,
             y_train=y_train,

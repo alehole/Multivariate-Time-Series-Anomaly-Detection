@@ -269,11 +269,12 @@ def main():
     print(f"x_train shape: {tuple(x_train.shape)}")
     print(f"x_val shape:   {tuple(x_val.shape)}")
     print(f"x_test shape:  {tuple(x_test.shape)}")
+
     # -----------------------------------------------------
-    # Random grid search
+    # Random hyperparameter search
     # -----------------------------------------------------
-    GRID_SEARCH=True
-    if GRID_SEARCH:
+
+    if cfg.GRID_SEARCH:
         search_results, best = random_search_rnn(
             x_train=x_train,
             y_train=y_train,
