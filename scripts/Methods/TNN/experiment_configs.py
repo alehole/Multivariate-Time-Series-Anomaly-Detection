@@ -23,7 +23,7 @@ TNN_TRAINING_CONFIG = {
     "lr": 0.03,
     "tbptt_size": 64,
     "weight_decay": 0.001,
-    "n_neurons": 512,
+    "n_neurons": 256,
 }
 
 

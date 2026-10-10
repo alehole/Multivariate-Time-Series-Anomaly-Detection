@@ -147,7 +147,7 @@ def categorize_dataset(
             "dtype": str(df[col].dtype),
         })
 
-    pd.DataFrame({"constant_columns": constant_cols}).to_csv(out_dir / f"{prefix}_CONSTANT.csv",index=False)
+    pd.DataFrame(constant_data).to_csv(out_dir / f"{prefix}_CONSTANT.csv", index=False)
 
     # Drop constant variables
     df = df.drop(columns=constant_cols)
