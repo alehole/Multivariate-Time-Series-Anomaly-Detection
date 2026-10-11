@@ -420,9 +420,9 @@ def flatten_aligned_results(
 
 def main():
     CALC_THRESHOLDS = False
-    ANOMALY_THRESHOLDS = [3.041, 3.211, 2.848]
+    ANOMALY_THRESHOLDS = [3.099, 3.458, 3.548]
 
-    USE_ANOMALY_FILE = False
+    USE_ANOMALY_FILE = True
 
     model_config = cfg.CONFIG
     data_path = Path(cfg.DATA_PATH)
@@ -431,7 +431,7 @@ def main():
     # 1. Load pretrained model
     # -----------------------------------------------------
     model_path = f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
-    #model_path = f"ds2_{model_config}_tnn_winding_baseline.pt"
+    #model_path = f"ds1_{model_config}_tnn_winding_baseline.pt"
     model, metadata = load_tnn(model_path, cfg.DEVICE)
 
     input_cols = metadata["input_cols"]
@@ -453,7 +453,7 @@ def main():
     # 2. Load and prepare anomaly test dataset
     # -----------------------------------------------------
     if USE_ANOMALY_FILE:
-        test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
+        test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T1_test.csv"
     else:
         test_path = data_path/"train_test_split"/f"{cfg.DS}_generator_test.csv"
 
@@ -517,7 +517,6 @@ def main():
         dtype=float
     )
 
-
     # -----------------------------------------------------
     # 4. Calculate residuals and anomaly flags
     # -----------------------------------------------------
@@ -536,9 +535,41 @@ def main():
     for target, threshold in zip(target_cols, ANOMALY_THRESHOLDS):
         print(f"{target} anomaly threshold: {threshold:.3f} °C")
 
-    anomalies = (
-                        np.abs(residuals_c) > ANOMALY_THRESHOLDS
-                ) | missing_measurements
+    # -----------------------------------------------------
+    # Raw threshold exceedances
+    # -----------------------------------------------------
+    threshold_exceeded = (
+            np.abs(residuals_c) > ANOMALY_THRESHOLDS
+    )
+
+    # -----------------------------------------------------
+    # Check whether samples are consecutive in time
+    # -----------------------------------------------------
+    timestamps = pd.to_datetime(result_df[cfg.TS_COL], errors="coerce", utc=True )
+
+    delta_t = timestamps.diff().dt.total_seconds().to_numpy()
+
+    consecutive_time = np.zeros(len(result_df), dtype=bool)
+
+    consecutive_time[1:] = np.isclose(delta_t[1:], dt_s, rtol=0.05)
+
+    # -----------------------------------------------------
+    # Require two consecutive threshold exceedances
+    # -----------------------------------------------------
+    persistent_anomalies = np.zeros_like(
+        threshold_exceeded,
+        dtype=bool,
+    )
+
+    persistent_anomalies[1:] = (
+            threshold_exceeded[1:]
+            & threshold_exceeded[:-1]
+            & consecutive_time[1:, None]
+    )
+
+    # Missing measurements remain a separate immediate anomaly
+    anomalies = persistent_anomalies | missing_measurements
+
 
     # -----------------------------------------------------
     # 5. Build result dataframe

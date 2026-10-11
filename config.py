@@ -19,15 +19,14 @@ DS2_CATEGORIZED_DIR = DATA_PATH / "raw_categorized" / "DS2"
 # ---------------------------------------------------------
 # Runtime configuration
 # ---------------------------------------------------------
-DEVICE = torch.device(
-    "cuda" if torch.cuda.is_available() else "cpu"
-)
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 SEED = 42
 TS_COL = "Created"
 
 DS = "ds1"
 CONFIG = "MC4"
-GRID_SEARCH = True
+GRID_SEARCH = False
 
 # ---------------------------------------------------------
 # Data model configuration shared by all methods

@@ -70,7 +70,8 @@ RNN_MODEL_CONFIG = {
 RNN_TRAINING_CONFIG = {
     **COMMON_TRAINING_CONFIG,
     "lr": 0.003,
-    "weight_decay": 0.0,
+    "weight_decay": 0,
+    #"weight_decay": 1e-5,
 }
 
 RNN_SEARCH_SPACE = {

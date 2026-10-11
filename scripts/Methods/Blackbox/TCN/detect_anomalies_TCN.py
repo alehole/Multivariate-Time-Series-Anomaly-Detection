@@ -167,18 +167,16 @@ def load_trained_tcn(
 
 def main():
     CALC_THRESHOLDS = False
-    ANOMALY_THRESHOLDS = [4.270, 3.291, 3.838]
+    ANOMALY_THRESHOLDS = [2.878, 2.754, 3.120]
 
     model_config = cfg.CONFIG
     # -----------------------------------------------------
     # 1. Load pretrained model
     # -----------------------------------------------------
-    device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model, metadata = load_trained_tcn(model_path=f"{cfg.DS}_{model_config}_tcn_winding_baseline.pt",  device=device)
-    #model, metadata = load_trained_tcn(model_path=f"ds2_{model_config}_tcn_winding_baseline.pt", device=device)
+    #model, metadata = load_trained_tcn(model_path=f"ds1_{model_config}_tcn_winding_baseline.pt", device=device)
 
     x_scaler = metadata["x_scaler"]
     y_scaler = metadata["y_scaler"]
@@ -196,9 +194,8 @@ def main():
     # -----------------------------------------------------
     data_path = Path(cfg.DATA_PATH)
 
-    #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
-
-    test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
+    test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F1_T1_test.csv"
+    #test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
     (
         test_data,
         actual_df,
@@ -259,12 +256,10 @@ def main():
         )
 
     # -----------------------------------------------------
-    # 5. Calculate residuals and anomaly thresholds
+    # 5. Calculate residuals and anomaly flags
     # -----------------------------------------------------
     residuals_c = actual_c - predicted_valid_c
-
     missing_measurements = ~np.isfinite(actual_c)
-
 
     if CALC_THRESHOLDS:
         # One 99.5th percentile threshold for each output
@@ -274,12 +269,59 @@ def main():
             axis=0,
         )
 
+    ANOMALY_THRESHOLDS = np.atleast_1d(ANOMALY_THRESHOLDS)
+
     for target, threshold in zip(target_cols, ANOMALY_THRESHOLDS):
         print(f"{target} anomaly threshold: {threshold:.3f} °C")
 
+    # -----------------------------------------------------
+    # Raw threshold exceedances
+    # -----------------------------------------------------
+    threshold_exceeded = (
+            np.abs(residuals_c) > ANOMALY_THRESHOLDS
+    )
+
+    # -----------------------------------------------------
+    # Check whether samples are consecutive in time
+    # -----------------------------------------------------
+    timestamps = pd.to_datetime(
+        actual_df[cfg.TS_COL],
+        errors="coerce",
+        utc=True,
+    )
+
+    delta_t = timestamps.diff().dt.total_seconds().to_numpy()
+
+    consecutive_time = np.zeros(
+        len(actual_df),
+        dtype=bool,
+    )
+
+    consecutive_time[1:] = np.isclose(
+        delta_t[1:],
+        dt_s,
+        rtol=0.05,
+    )
+
+    # -----------------------------------------------------
+    # Require two consecutive threshold exceedances
+    # -----------------------------------------------------
+    persistent_anomalies = np.zeros_like(
+        threshold_exceeded,
+        dtype=bool,
+    )
+
+    persistent_anomalies[1:] = (
+            threshold_exceeded[1:]
+            & threshold_exceeded[:-1]
+            & consecutive_time[1:, None]
+    )
+
+    # Missing measurements remain immediate anomalies
     anomalies = (
-                        np.abs(residuals_c) > ANOMALY_THRESHOLDS
-                ) | missing_measurements
+            persistent_anomalies
+            | missing_measurements
+    )
     # -----------------------------------------------------
     # 6. Build result dataframe
     # -----------------------------------------------------
@@ -337,7 +379,7 @@ def main():
         residual=residuals_c,
         target_cols=target_cols,
         anomaly_threshold=ANOMALY_THRESHOLDS,
-        show_threshold=False,
+        show_threshold=True,
         #plot_targets=["T1", "T2", "T3"],
         plot_targets=["T1"],
     )
