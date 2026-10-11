@@ -422,7 +422,7 @@ def main():
     CALC_THRESHOLDS = False
     ANOMALY_THRESHOLDS = [3.099, 3.458, 3.548]
 
-    USE_ANOMALY_FILE = True
+    USE_ANOMALY_FILE = False
 
     model_config = cfg.CONFIG
     data_path = Path(cfg.DATA_PATH)
