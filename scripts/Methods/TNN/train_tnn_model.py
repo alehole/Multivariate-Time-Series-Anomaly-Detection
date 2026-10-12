@@ -78,10 +78,7 @@ def get_tnn_column_groups() -> tuple[list[str], list[str]]:
         )
     )
 
-    # T16 = FAN1 .
-    cooling_columns = ["T16"] if "T16" in cfg.INPUT_COLS else []
-
-    return temperature_cols, cooling_columns
+    return temperature_cols
 
 
 def _one_step_views(
@@ -132,7 +129,6 @@ def train_tnn(
     val_mask: torch.Tensor,
     input_cols: list[str],
     target_cols: list[str],
-    dt_s: float,
     *,
     n_epochs: int,
     tbptt_size: int,
@@ -216,10 +212,13 @@ def train_tnn(
             loss = prediction_loss
 
             loss.backward()
+
+            '''
             torch.nn.utils.clip_grad_norm_(
                 model.parameters(),
                 max_norm=1.0,
             )
+            '''
             optimizer.step()
 
             epoch_loss += float(loss.item())
@@ -341,7 +340,6 @@ def save_tnn(
     input_cols: list[str],
     target_cols: list[str],
     temperature_cols: list[str],
-    cooling_columns: list[str],
     dt_s: float,
     history: dict,
     best_epoch: int,
@@ -362,7 +360,6 @@ def save_tnn(
         "input_cols": list(input_cols),
         "target_cols": list(target_cols),
         "temperature_cols": list(temperature_cols),
-        "cooling_columns": list(cooling_columns),
         "dt_s": float(dt_s),
         "window_steps": WINDOW_STEPS,
         "training_config": dict(TNN_TRAINING_CONFIG),
@@ -386,7 +383,6 @@ def random_search_tnn(
     input_cols,
     target_cols,
     temperature_cols,
-    cooling_columns,
     dt_s,
     n_trials=20,
     seed=42,
@@ -452,7 +448,6 @@ def random_search_tnn(
             target_cols=target_cols,
             temperature_cols=temperature_cols,
             device=cfg.DEVICE,
-            cooling_columns=cooling_columns,
             n_neurons=training_config["n_neurons"],
         )
 
@@ -594,14 +589,13 @@ def main():
     val_tensor = torch.cat([x_val, y_val], dim=2)
     test_tensor = torch.cat([x_test, y_test], dim=2)
 
-    temperature_cols, cooling_columns = get_tnn_column_groups()
+    temperature_cols = get_tnn_column_groups()
 
     print("Dataset:", cfg.DS)
     print("Configuration:", cfg.CONFIG)
     print("Inputs:", cfg.INPUT_COLS)
     print("Targets:", cfg.TARGET_COLS)
     print("Thermal nodes:", temperature_cols)
-    print("Cooling columns:", cooling_columns)
 
     # -----------------------------------------------------
     # Random hyperparameter search
@@ -616,7 +610,6 @@ def main():
             input_cols=cfg.INPUT_COLS,
             target_cols=cfg.TARGET_COLS,
             temperature_cols=temperature_cols,
-            cooling_columns=cooling_columns,
             dt_s=dt_s,
             n_trials=100,
             seed=cfg.SEED,
@@ -640,7 +633,6 @@ def main():
         target_cols=cfg.TARGET_COLS,
         temperature_cols=temperature_cols,
         device=cfg.DEVICE,
-        cooling_columns=cooling_columns,
         n_neurons=TNN_TRAINING_CONFIG["n_neurons"],
     )
 
@@ -675,7 +667,6 @@ def main():
         val_mask=val_mask,
         input_cols=cfg.INPUT_COLS,
         target_cols=cfg.TARGET_COLS,
-        dt_s=dt_s,
         **{
             key: value
             for key, value in TNN_TRAINING_CONFIG.items()
@@ -721,7 +712,6 @@ def main():
         input_cols=cfg.INPUT_COLS,
         target_cols=cfg.TARGET_COLS,
         temperature_cols=temperature_cols,
-        cooling_columns=cooling_columns,
         dt_s=dt_s,
         history=history,
         best_epoch=best_epoch,

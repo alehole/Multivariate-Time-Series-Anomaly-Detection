@@ -61,11 +61,19 @@ def profile_likelihood_2d(
     hi = np.asarray(UPPER_BOUND, float)
     n = len(theta_hat)
 
+    # 2STATE_A
+    PL2_SPANS = {
+        ("C1", "R1"): (0.5, 0.5),
+        ("C2", "R2"): (0.5, 0.5),
+    }
+
+    # 2STATE_B
+    '''
     PL2_SPANS = {
         ("C1", "R1"): (0.20, 0.20),
         ("C2", "R2"): (0.5, 0.5),
     }
-
+    '''
     span_i, span_j = PL2_SPANS.get(
         (PARAMETER_NAMES[i], PARAMETER_NAMES[j]),
         (0.5, 0.5),

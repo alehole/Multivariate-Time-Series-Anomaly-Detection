@@ -25,7 +25,7 @@ SEED = 42
 TS_COL = "Created"
 
 DS = "ds1"
-CONFIG = "MC4"
+CONFIG = "MC5"
 GRID_SEARCH = False
 
 # ---------------------------------------------------------

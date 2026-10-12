@@ -4,7 +4,7 @@ import config as cfg
 # ---------------------------------------------------------
 # SDE model selection
 # ---------------------------------------------------------
-MODEL_OPTION = "1state"
+MODEL_OPTION = "2state_A"
 
 # ---------------------------------------------------------
 # SDE run configuration
@@ -12,10 +12,9 @@ MODEL_OPTION = "1state"
 RUN_TOY_CHECK = False
 
 RUN_PL1 = True
-RUN_PL2 = False
+RUN_PL2 = True
 
 RUN_WILKS = False
-
 ESTIMATE_Q = False
 
 MAXITER = 2000
@@ -41,7 +40,7 @@ TOY_THETA_TRUE = np.array([
 r = 0.7   # measurement-noise standard deviation [°C]
 q = 0.9  # process-noise standard deviation [°C]
 
-# 2R2C_B
+# 2R2C_A
 # Measurement-noise standard deviations [°C]
 r1 = 0.7 # U-winding measurement std [°C]
 r2 = 0.7 # end-bearing measurement std [°C]
@@ -49,6 +48,16 @@ r2 = 0.7 # end-bearing measurement std [°C]
 # Process-noise standard deviations [°C per sample]
 q1 = 0.95
 q2 = 0.95
+
+
+# 2R2C_B
+# Measurement-noise standard deviations [°C]
+#r1 = 0.7 # U-winding measurement std [°C]
+#r2 = 0.7 # end-bearing measurement std [°C]
+
+# Process-noise standard deviations [°C per sample]
+#q1 = 0.95
+#q2 = 0.95
 
 MODEL_CONFIGS = {
     "1state": {
@@ -59,14 +68,10 @@ MODEL_CONFIGS = {
         "theta0": np.array([1.15e5, 0.04]),
         "lower_bound": np.array([1.0e4, 0.005]),
         "upper_bound": np.array([1.0e6, 0.5]),
-        #"Q": np.diag([0.0001]),
-        #"Q_INIT": np.diag([0.009]),
         "Q_INIT": np.diag([q**2]),
         "R": np.diag([r**2]),
-        #"R": np.array([[0.0225]]),  # sigma = 0.15 °C
         "H": np.array([[1.0]]),
     },
-
     "2state_A": {
         "state_cols": ["T1", "T2"],
         "meas_cols": ["T1", "T2"],
@@ -91,17 +96,15 @@ MODEL_CONFIGS = {
             2.0,  # R2
         ]),
         "Q_INIT": np.diag([
-            0.0001,
-            0.0001,
+            q1 ** 2,
+            q2 ** 2,
         ]),
         "R": np.diag([
-            0.02,  # U-winding sensor
-            0.02,  # end-bearing sensor
+            r1 ** 2,  # U-winding sensor
+            r2 ** 2,  # end-bearing sensor
         ]),
         "H": np.eye(2),
     },
-
-
     "2state_B": {
         "state_cols": ["T1", "T2"],
         "meas_cols": ["T1", "T2"],
@@ -128,16 +131,10 @@ MODEL_CONFIGS = {
         "Q_INIT": np.diag([
             q1 ** 2,
             q2 ** 2,
-            #0.0001,
-            #0.0001,
-            #4.0000,
-            #4.0000,
         ]),
         "R": np.diag([
-            r1 ** 2,
-            r2 ** 2,
-            #0.01,  # U-winding measurement
-            #0.001,  # End-bearing measurement
+            r1 ** 2, # U-winding measurement
+            r2 ** 2, # End-bearing measurement
         ]),
         "H": np.eye(2),
     },
@@ -176,20 +173,17 @@ if RUN_TOY_CHECK:
         "P": "P",
         "Tref": "Tref",
     }
-
 else:
     generic_to_raw = {
         generic: raw
         for raw, generic in cfg.RENAME_MAP.items()
     }
-
     if MODEL_OPTION == "1state":
         RENAME_MAP = {
             generic_to_raw["T1"]: "T1",      # U-winding temperature
             generic_to_raw["E1"]: "P",       # Generator power
             generic_to_raw["T16"]: "Tref",   # FAN 1 temperature
         }
-
     elif MODEL_OPTION == "2state_A":
         RENAME_MAP = {
             generic_to_raw["T1"]: "T1",      # U-winding temperature
@@ -199,11 +193,10 @@ else:
         }
     elif MODEL_OPTION == "2state_B":
         RENAME_MAP = {
-
-            generic_to_raw["T1"]: "T1",  # U-winding temperature
-            generic_to_raw["T5"]: "T2",  # End-bearing temperature
-            generic_to_raw["E1"]: "P",# Generator power
-            generic_to_raw["T16"]: "Tref",# FAN 1 temperature
+            generic_to_raw["T1"]: "T1",     # U-winding temperature
+            generic_to_raw["T5"]: "T2",     # End-bearing temperature
+            generic_to_raw["E1"]: "P",      # Generator power
+            generic_to_raw["T16"]: "Tref",  # FAN 1 temperature
         }
 
 SENSOR_COLS = list(RENAME_MAP.keys())

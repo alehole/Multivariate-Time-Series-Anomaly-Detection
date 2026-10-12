@@ -41,7 +41,6 @@ def load_tnn(
         "input_cols",
         "target_cols",
         "temperature_cols",
-        "cooling_columns",
         "dt_s",
         "window_steps",
         "n_neurons",
@@ -61,7 +60,6 @@ def load_tnn(
         input_cols=checkpoint["input_cols"],
         target_cols=checkpoint["target_cols"],
         temperature_cols=checkpoint["temperature_cols"],
-        cooling_columns=checkpoint["cooling_columns"],
         n_neurons=checkpoint["n_neurons"],
         device=device,
     )

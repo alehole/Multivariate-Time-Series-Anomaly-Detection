@@ -19,11 +19,9 @@ TNN_SEARCH_SPACE = {
 }
 
 TNN_TRAINING_CONFIG = {
-    "n_epochs": 300,
+    "n_epochs": 200,
     "lr": 0.03,
     "tbptt_size": 64,
     "weight_decay": 0.001,
     "n_neurons": 256,
 }
-
-
