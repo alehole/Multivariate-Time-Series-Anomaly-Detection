@@ -10,12 +10,14 @@ MODEL_OPTION = "1state"
 # SDE run configuration
 # ---------------------------------------------------------
 RUN_TOY_CHECK = False
-RUN_PL1 = False
-RUN_PL2 = False
-RUN_WILKS = False
-ESTIMATE_Q = True
 
-RESIDUAL_ANOMALY_THRESHOLD = 1.95  # [°C]
+RUN_PL1 = True
+RUN_PL2 = False
+
+RUN_WILKS = False
+
+ESTIMATE_Q = False
+
 MAXITER = 2000
 NIS_THRESHOLD_PERCENTILE = 0.995
 
@@ -31,6 +33,23 @@ TOY_THETA_TRUE = np.array([
 # SDE thermal-model configurations
 # ---------------------------------------------------------
 
+# 1R1C Toy sim
+#r = 0.5   # measurement-noise standard deviation [°C]
+#q = 0.01  # process-noise standard deviation [°C]
+
+# 1R1C
+r = 0.7   # measurement-noise standard deviation [°C]
+q = 0.9  # process-noise standard deviation [°C]
+
+# 2R2C_B
+# Measurement-noise standard deviations [°C]
+r1 = 0.7 # U-winding measurement std [°C]
+r2 = 0.7 # end-bearing measurement std [°C]
+
+# Process-noise standard deviations [°C per sample]
+q1 = 0.95
+q2 = 0.95
+
 MODEL_CONFIGS = {
     "1state": {
         "state_cols": ["T1"],
@@ -42,10 +61,10 @@ MODEL_CONFIGS = {
         "upper_bound": np.array([1.0e6, 0.5]),
         #"Q": np.diag([0.0001]),
         #"Q_INIT": np.diag([0.009]),
-        "Q_INIT": np.diag([0.009]),
-        #"R": np.diag([0.5**2]),
-        "R": np.array([[0.0225]]),  # sigma = 0.15 °C
-        "C": np.array([[1.0]]),
+        "Q_INIT": np.diag([q**2]),
+        "R": np.diag([r**2]),
+        #"R": np.array([[0.0225]]),  # sigma = 0.15 °C
+        "H": np.array([[1.0]]),
     },
 
     "2state_A": {
@@ -79,16 +98,18 @@ MODEL_CONFIGS = {
             0.02,  # U-winding sensor
             0.02,  # end-bearing sensor
         ]),
-        "C": np.eye(2),
+        "H": np.eye(2),
     },
+
+
     "2state_B": {
         "state_cols": ["T1", "T2"],
         "meas_cols": ["T1", "T2"],
         "input_cols": ["P", "Tref"],
         "parameter_names": ["C1", "C2", "R1", "R2"],
         "theta0": np.array([
-            1.5e7,  # C1
-            2.5e8,  # C2
+            1.5e6,  # C1
+            2.5e6,  # C2
             0.011,  # R1
             0.03,   # R2
         ]),
@@ -105,16 +126,20 @@ MODEL_CONFIGS = {
             2.0,  # R2
         ]),
         "Q_INIT": np.diag([
-            0.0001,
-            0.0001,
+            q1 ** 2,
+            q2 ** 2,
+            #0.0001,
+            #0.0001,
             #4.0000,
             #4.0000,
         ]),
         "R": np.diag([
-            0.01,  # U-winding measurement
-            0.001,  # End-bearing measurement
+            r1 ** 2,
+            r2 ** 2,
+            #0.01,  # U-winding measurement
+            #0.001,  # End-bearing measurement
         ]),
-        "C": np.eye(2),
+        "H": np.eye(2),
     },
 }
 selected = MODEL_CONFIGS[MODEL_OPTION]
@@ -128,7 +153,7 @@ LOWER_BOUND = selected["lower_bound"]
 UPPER_BOUND = selected["upper_bound"]
 Q_INIT = selected["Q_INIT"]
 R = selected["R"]
-C = selected["C"]
+H = selected["H"]
 
 
 # ---------------------------------------------------------
@@ -180,6 +205,5 @@ else:
             generic_to_raw["E1"]: "P",# Generator power
             generic_to_raw["T16"]: "Tref",# FAN 1 temperature
         }
-
 
 SENSOR_COLS = list(RENAME_MAP.keys())

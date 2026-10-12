@@ -19,7 +19,7 @@ from plotting import(
 )
 
 from model import simulate_model
-from ekf import run_ekf
+from ekf import run_kf
 import numpy as np
 
 def save_sde_checkpoint(
@@ -52,15 +52,13 @@ def save_sde_checkpoint(
 
         "Q": Q_used,
         "R": sde_cfg.R,
-        "C": sde_cfg.C,
+        "H": sde_cfg.H,
 
         "rename_map": sde_cfg.RENAME_MAP,
         "sensor_cols": sde_cfg.SENSOR_COLS,
 
         "dt_s": dt_s,
 
-        "anomaly_threshold":
-            sde_cfg.RESIDUAL_ANOMALY_THRESHOLD,
     }
 
     with open(path, "wb") as f:
@@ -207,7 +205,7 @@ def fit_model(df_train):
     return theta_hat, result, Q_used
 
 
-def evaluate_ekf(
+def evaluate_kf(
         df,
         theta_hat,
         name,
@@ -220,10 +218,10 @@ def evaluate_ekf(
         nis,
         x_pred,
         likelihood,
-    ) = run_ekf(
+    ) = run_kf(
         df=df,
         theta=theta_hat,
-        C=sde_cfg.C,
+        H=sde_cfg.H,
         Q=Q_used,
         R=sde_cfg.R,
     )
@@ -332,14 +330,14 @@ def main():
     # EKF evaluation
     # -----------------------------------------------------
 
-    train_ekf = evaluate_ekf(
+    train_ekf = evaluate_kf(
         df_train,
         theta_hat,
         "training",
         Q_used,
     )
 
-    test_ekf = evaluate_ekf(
+    test_ekf = evaluate_kf(
         df_test,
         theta_hat,
         "test",
@@ -429,8 +427,8 @@ def main():
         theta_hat_reduced = theta_hat # Placeholders
         theta_hat_full = theta_hat # placeholders
         # fit each model = minimize neg_log_lik over its own theta
-        *_, nll_A = run_ekf(df_train, theta_hat_reduced, sde_cfg.C, sde_cfg.Q, sde_cfg.R)
-        *_, nll_B = run_ekf(df_train, theta_hat_full, sde_cfg.C, sde_cfg.Q, sde_cfg.R)
+        *_, nll_A = run_kf(df_train, theta_hat_reduced, sde_cfg.H, sde_cfg.Q, sde_cfg.R)
+        *_, nll_B = run_kf(df_train, theta_hat_full, sde_cfg.H, sde_cfg.Q, sde_cfg.R)
         LR, p = wilks_likelihood_ratio_test(nll_A, nll_B, 1)
         verdict = "keep the extra parameter" if p < 0.05 else "reduced model is adequate"
         print(f"Wilks: LR={LR:.3f}, p={p:.4f} -> {verdict}")

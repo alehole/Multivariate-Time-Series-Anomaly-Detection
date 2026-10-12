@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
-from SDE_config import LOWER_BOUND, UPPER_BOUND, R, C,PARAMETER_NAMES
+from SDE_config import LOWER_BOUND, UPPER_BOUND, R, H,PARAMETER_NAMES
 from parameter_estimation import neg_log_likelihood
 
 def run_pl2(
@@ -10,8 +10,10 @@ def run_pl2(
         theta_hat,
         nll_ref,
         Q_hat,
-        n_points=31,
-        inner_maxiter=120
+        #n_points=31,
+        n_points=15,
+        #inner_maxiter=120
+        inner_maxiter=80
 ):
     i = PARAMETER_NAMES.index(name_a)
     j = PARAMETER_NAMES.index(name_b)
@@ -100,7 +102,7 @@ def profile_likelihood_2d(
                 val = neg_log_likelihood(
                     theta,
                     df,
-                    C,
+                    H,
                     Q_used,
                     R
                 )

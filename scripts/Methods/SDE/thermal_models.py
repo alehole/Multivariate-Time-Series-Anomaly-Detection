@@ -26,36 +26,25 @@ def model_1state(
     P, Tref = u
     C1, R1 = theta
 
-    dT = P / C1 + (Tref - T) / (C1 * R1)
+    Kp = 1.0
+    q_heat = Kp * P
+
+    dT = q_heat / C1 + (Tref - T) / (C1 * R1)
 
     return np.array([dT], dtype=float)
 
+def state_space_1state(theta: Array) -> tuple[Array, Array]:
+    C1, R1 = theta
 
-def model_1state_2ref(
-    x: Array,
-    u: Array,
-    theta: Array,
-) -> Array:
-    """
-                    P
-                    ↓
-                [T1, C1]
-                 │      │
-                Ra      Rc
-                 │      │
-               [Ta]   [Tc]
-    """
-    T1 = x[0]
-    P, Ta, Tc = u
-    C1, Ra, Rc = theta
+    A = np.array([
+        [-1.0 / (C1 * R1)]
+    ])
 
-    q_a = (T1 - Ta) / Ra
-    q_c = (T1 - Tc) / Rc
+    B = np.array([
+        [1.0 / C1, 1.0 / (C1 * R1)]
+    ])
 
-    dT1 = (P - q_a - q_c) / C1
-
-    return np.array([dT1], dtype=float)
-
+    return A, B
 
 def model_2state(
     x: Array,
@@ -79,23 +68,75 @@ def model_2state(
     P, Tref = u
     C1, C2, R1, R2 = theta
 
+    Kp = 1.0
+    q_heat = Kp * P
+
     q_12 = (T1 - T2) / R1
     q_2ref = (T2 - Tref) / R2
 
-    dT1 = (P - q_12) / C1
+    #dT1 = (P - q_12) / C1
+    dT1 = (q_heat - q_12) / C1
     dT2 = (q_12 - q_2ref) / C2
 
     return np.array([dT1, dT2], dtype=float)
 
 
+def state_space_2state(theta: Array) -> tuple[Array, Array]:
+    C1, C2, R1, R2 = theta
+
+    A = np.array([
+        [
+            -1.0 / (C1 * R1),
+             1.0 / (C1 * R1),
+        ],
+        [
+             1.0 / (C2 * R1),
+            -(1.0 / (C2 * R1) + 1.0 / (C2 * R2)),
+        ],
+    ])
+
+    B = np.array([
+        [
+            1.0 / C1,
+            0.0,
+        ],
+        [
+            0.0,
+            1.0 / (C2 * R2),
+        ],
+    ])
+
+    return A, B
+
 MODEL_FUNCTIONS: dict[str, ModelFunction] = {
     "1state": model_1state,
-    "1state_2ref": model_1state_2ref,
     "2state": model_2state,
     "2state_A": model_2state,
     "2state_B": model_2state,
 }
+STATE_SPACE_FUNCTIONS = {
+    "1state": state_space_1state,
+    "2state": state_space_2state,
+    "2state_A": state_space_2state,
+    "2state_B": state_space_2state,
+}
 
+def continuous_state_space(
+    theta,
+    model_option: str,
+) -> tuple[Array, Array]:
+
+    try:
+        state_space_function = STATE_SPACE_FUNCTIONS[model_option]
+    except KeyError as exc:
+        raise ValueError(
+            f"Invalid model option {model_option!r}. "
+            f"Expected one of {list(STATE_SPACE_FUNCTIONS)}."
+        ) from exc
+
+    theta = np.asarray(theta, dtype=float).ravel()
+
+    return state_space_function(theta)
 
 def f_continuous(
     x,
@@ -121,3 +162,23 @@ def f_continuous(
         u_array,
         theta_array,
     )
+
+def discrete_state_space(
+    theta,
+    dt: float,
+    model_option: str,
+) -> tuple[Array, Array]:
+
+    A_c, B_c = continuous_state_space(
+        theta,
+        model_option,
+    )
+
+    I = np.eye(A_c.shape[0])
+
+    M = I - dt * A_c
+
+    F = np.linalg.solve(M, I)
+    G = np.linalg.solve(M, dt * B_c)
+
+    return F, G

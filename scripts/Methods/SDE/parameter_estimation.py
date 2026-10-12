@@ -2,13 +2,13 @@ import numpy as np
 from scipy.stats import chi2
 from scipy.optimize import minimize
 
-from ekf import run_ekf
+from ekf import run_kf
 from SDE_config import(
     THETA0,
     LOWER_BOUND,
     UPPER_BOUND,
     PARAMETER_NAMES,
-    C,
+    H,
     R,
     Q_INIT,
     MAXITER,
@@ -17,14 +17,14 @@ from SDE_config import(
 def neg_log_likelihood(
         theta,
         df,
-        C=C,
+        H=H,
         Q=Q_INIT,
         R=R
 ):
     """
     Calculate the negative log-likelihood given the data, parameters C, Q, R.
     """
-    *_, nll = run_ekf(df, theta, C, Q, R)
+    *_, nll = run_kf(df, theta, H, Q, R)
     return nll
 
 def minimize_nll(
@@ -73,7 +73,7 @@ def estimate_parameters_mle(df_train):
         return neg_log_likelihood(
             theta,
             df_train,
-            C,
+            H,
             Q_INIT,
             R,
         )
@@ -206,7 +206,7 @@ def estimate_parameters_mle_q_theta(df_train):
         return neg_log_likelihood(
             theta,
             df_train,
-            C,
+            H,
             Q_candidate,
             R,
         )

@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
-from SDE_config import LOWER_BOUND, UPPER_BOUND, Q_INIT, R, C,PARAMETER_NAMES
+from SDE_config import LOWER_BOUND, UPPER_BOUND, Q_INIT, R, H,PARAMETER_NAMES
 from parameter_estimation import neg_log_likelihood, minimize_nll
 
 def run_pl1(df_train, theta_hat, nll_ref, Q):
@@ -52,14 +52,14 @@ def profile_likelihood_1d(
     n = len(theta_hat)
     profiles = {}
     '''
-    # For 1 state:
+    # For 1 state toy sim:
     PL1_SPANS = {
         "C1": 0.15,
         "C2": 1.00,
-        "R1": 0.15,
+        "R1": 0.01,
         "R2": 1.00,
     }
-    '''
+'''
     '''
     # For 2 state_A:
     PL1_SPANS = {
@@ -110,7 +110,7 @@ def profile_likelihood_1d(
                 return neg_log_likelihood(
                     theta,
                     df,
-                    C,
+                    H,
                     Q,
                     R
                 )
@@ -147,7 +147,13 @@ def plot_profile_likelihood(profiles, ndf=1, y_limit=12.0):
         "95%": chi2.ppf(0.95, ndf),
         "99%": chi2.ppf(0.99, ndf),
     }
-
+    '''
+    levels = {
+        "90%": 0.5 * chi2.ppf(0.90, ndf),
+        "95%": 0.5 * chi2.ppf(0.95, ndf),
+        "99%": 0.5 * chi2.ppf(0.99, ndf),
+    }
+    '''
     for name, (grid, rel) in profiles.items():
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.plot(grid, rel, "b-", linewidth=1.5, label="Profile likelihood")

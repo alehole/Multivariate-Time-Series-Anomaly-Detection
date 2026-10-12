@@ -4,9 +4,10 @@ from model import simulate_model
 from plotting import plot_full_ekf_comparison
 import numpy as np
 import config as cfg
+import pandas as pd
 
 from misc.data import load_data
-from ekf import run_ekf
+from ekf import run_kf
 
 from Visualization.prediction_plots import (
     plot_actual_vs_predicted,
@@ -60,12 +61,10 @@ def main():
     input_cols = checkpoint["input_cols"]
     Q = checkpoint["Q"]
     R = checkpoint["R"]
-    C = checkpoint["C"]
+    H = checkpoint["H"]
 
     rename_map = checkpoint["rename_map"]
     sensor_cols = checkpoint["sensor_cols"]
-
-    #threshold = checkpoint["anomaly_threshold"]
 
     print("SDE model loaded successfully")
     print("Model:", checkpoint["model_option"])
@@ -77,11 +76,27 @@ def main():
     # 3. Load anomaly-injected test data
     # -----------------------------------------------------
 
-    df_test = load_data(test_path, cfg.TS_COL, sensor_cols, rename_map)
+    val_path = data_path / "train_test_split" / "ds1_generator_val.csv"
+    test_path = data_path / "train_test_split" / "ds1_generator_test.csv"
+
+    df_val = load_data(
+        val_path,
+        cfg.TS_COL,
+        sensor_cols,
+        rename_map
+    )
+
+    df_test = load_data(
+        test_path,
+        cfg.TS_COL,
+        sensor_cols,
+        rename_map
+    )
+
     print("Test observations:", len(df_test))
 
     # -----------------------------------------------------
-    # 4. Run fitted EKF
+    # 4. Run fitted KF
     #
     # -----------------------------------------------------
 
@@ -92,10 +107,10 @@ def main():
         nis,
         x_pred,
         likelihood,
-    ) = run_ekf(
+    ) = run_kf(
         df=df_test,
         theta=theta_hat,
-        C=C,
+        H=H,
         Q=Q,
         R=R,
         state_cols=state_cols,
@@ -108,7 +123,7 @@ def main():
     # 5. Convert prior state prediction to measurements
     # -----------------------------------------------------
 
-    predicted = np.asarray(x_pred, dtype=float) @ np.asarray(C, dtype=float).T
+    predicted = np.asarray(x_pred, dtype=float) @ np.asarray(H, dtype=float).T
 
     actual = df_test[meas_cols].to_numpy(dtype=float)
 
