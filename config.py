@@ -25,8 +25,8 @@ SEED = 42
 TS_COL = "Created"
 
 DS = "ds1"
-CONFIG = "MC5"
-GRID_SEARCH = False
+CONFIG = "MC4"
+GRID_SEARCH = True
 
 # ---------------------------------------------------------
 # Data model configuration shared by all methods

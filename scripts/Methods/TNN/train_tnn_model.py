@@ -1,4 +1,6 @@
 from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import torch
@@ -65,7 +67,7 @@ def load_and_prepare_data(
     return data, dt_s
 
 
-def get_tnn_column_groups() -> tuple[list[str], list[str]]:
+def get_tnn_column_groups() -> list[Any]:
     temperature_inputs = [
         col
         for col in cfg.INPUT_COLS
@@ -213,12 +215,11 @@ def train_tnn(
 
             loss.backward()
 
-            '''
             torch.nn.utils.clip_grad_norm_(
                 model.parameters(),
                 max_norm=1.0,
             )
-            '''
+
             optimizer.step()
 
             epoch_loss += float(loss.item())
@@ -460,7 +461,6 @@ def random_search_tnn(
             val_mask=val_mask,
             input_cols=input_cols,
             target_cols=target_cols,
-            dt_s=dt_s,
             **{
                 key: value
                 for key, value in training_config.items()

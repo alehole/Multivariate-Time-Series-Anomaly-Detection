@@ -1,6 +1,5 @@
 import torch
 from torch import Tensor
-from torch.nn import Module
 
 def masked_mse_loss_orig(y_hat, y_true, mask):
     """
@@ -15,8 +14,6 @@ def masked_mse_loss_orig(y_hat, y_true, mask):
     loss = loss * mask
 
     return loss.sum() / mask.sum().clamp(min=1.0)
-
-
 
 
 def masked_mse_loss(
@@ -106,7 +103,6 @@ def train_sequence_model(
         loss = masked_mse_loss(y_hat, y_train, mask_train)
 
         loss.backward()
-
 
         torch.nn.utils.clip_grad_norm_(
             model.parameters(),

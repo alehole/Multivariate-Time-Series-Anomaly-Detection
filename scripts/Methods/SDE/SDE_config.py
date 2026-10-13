@@ -11,8 +11,8 @@ MODEL_OPTION = "2state_A"
 # ---------------------------------------------------------
 RUN_TOY_CHECK = False
 
-RUN_PL1 = True
-RUN_PL2 = True
+RUN_PL1 = False
+RUN_PL2 = False
 
 RUN_WILKS = False
 ESTIMATE_Q = False
@@ -43,11 +43,11 @@ q = 0.9  # process-noise standard deviation [°C]
 # 2R2C_A
 # Measurement-noise standard deviations [°C]
 r1 = 0.7 # U-winding measurement std [°C]
-r2 = 0.7 # end-bearing measurement std [°C]
+r2 = 0.5 # end-bearing measurement std [°C]
 
 # Process-noise standard deviations [°C per sample]
-q1 = 0.95
-q2 = 0.95
+q1 = 0.9
+q2 = 6.0
 
 
 # 2R2C_B
@@ -78,10 +78,10 @@ MODEL_CONFIGS = {
         "input_cols": ["P", "Tref"],
         "parameter_names": ["C1", "C2", "R1", "R2"],
         "theta0": np.array([
-            1.0e6,  # C1
-            1.0e6,  # C2
-            0.02,  # R1
-            0.02,  # R2
+            1.5e6,  # C1
+            2.5e6,  # C2
+            0.011,  # R1
+            0.03,   # R2
         ]),
         "lower_bound": np.array([
             1.0e4,
@@ -90,8 +90,8 @@ MODEL_CONFIGS = {
             0.005,
         ]),
         "upper_bound": np.array([
-            1e8,  # C1
-            5e9,  # C2
+            1e7,  # C1
+            1e7,  # C2
             0.5,  # R1
             2.0,  # R2
         ]),
