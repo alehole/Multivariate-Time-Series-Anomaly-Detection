@@ -19,14 +19,14 @@ TCN_MODEL_CONFIG = {
     "input_size": len(cfg.INPUT_COLS),
     "output_size": len(cfg.TARGET_COLS),
     "channels": (32, 64, 64, 64),
-    "kernel_size": 5,
+    "kernel_size": 7,
     "dropout": 0.3,
 }
 
 TCN_TRAINING_CONFIG = {
     **COMMON_TRAINING_CONFIG,
     "lr": 0.003,
-    "weight_decay": 1e-5,
+    "weight_decay": 0.0001,
 }
 
 TCN_SEARCH_SPACE = {
@@ -39,10 +39,11 @@ TCN_SEARCH_SPACE = {
     "kernel_size": [3, 5, 7],
     "dropout": [0.0, 0.1, 0.3],
     "lr": [
-        1e-4,
-        3e-4,
-        1e-3,
-        3e-3,
+        0.0001,
+        0.0003,
+        0.001,
+        0.003,
+        0.01
     ],
     "weight_decay": [
         0.0,
@@ -61,7 +62,7 @@ RNN_MODEL_TYPE = "LSTM"
 RNN_MODEL_CONFIG = {
     "input_size": len(cfg.INPUT_COLS),
     "output_size": len(cfg.TARGET_COLS),
-    "hidden_size": 128,
+    "hidden_size": 256,
     "num_layers": 3,
     "dropout": 0.1,
     "model_type": RNN_MODEL_TYPE,
@@ -69,9 +70,8 @@ RNN_MODEL_CONFIG = {
 
 RNN_TRAINING_CONFIG = {
     **COMMON_TRAINING_CONFIG,
-    "lr": 0.003,
+    "lr":   0.003,
     "weight_decay": 0,
-    #"weight_decay": 1e-5,
 }
 
 RNN_SEARCH_SPACE = {
@@ -79,10 +79,11 @@ RNN_SEARCH_SPACE = {
     "num_layers": [1, 2, 3],
     "dropout": [0.0, 0.1, 0.3],
     "lr": [
-        1e-4,
-        3e-4,
-        1e-3,
-        3e-3,
+        0.0001,
+        0.0003,
+        0.001,
+        0.003,
+        0.01
     ],
     "weight_decay": [
         0.0,
