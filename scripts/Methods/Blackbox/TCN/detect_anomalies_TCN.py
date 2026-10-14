@@ -167,7 +167,7 @@ def load_trained_tcn(
 
 def main():
     CALC_THRESHOLDS = False
-    ANOMALY_THRESHOLDS = [2.878, 2.754, 3.120]
+    ANOMALY_THRESHOLDS = [1.978, 2.313, 2.126]
 
     model_config = cfg.CONFIG
     # -----------------------------------------------------
@@ -176,7 +176,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model, metadata = load_trained_tcn(model_path=f"{cfg.DS}_{model_config}_tcn_winding_baseline.pt",  device=device)
-    #model, metadata = load_trained_tcn(model_path=f"ds1_{model_config}_tcn_winding_baseline.pt", device=device)
+    #model, metadata = load_trained_tcn(model_path=f"ds2_{model_config}_tcn_winding_baseline.pt", device=device)
 
     x_scaler = metadata["x_scaler"]
     y_scaler = metadata["y_scaler"]

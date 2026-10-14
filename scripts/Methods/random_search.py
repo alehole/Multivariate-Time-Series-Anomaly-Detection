@@ -4,9 +4,9 @@ import sys
 import time
 
 SCRIPTS = [
-    #Path("Blackbox/RNN/train_rnn_model.py"),
+    Path("Blackbox/RNN/train_rnn_model.py"),
     #Path("Blackbox/TCN/train_tcn_model.py"),
-    Path("TNN/train_tnn_model.py"),
+    #Path("TNN/train_tnn_model.py"),
 ]
 
 def main():

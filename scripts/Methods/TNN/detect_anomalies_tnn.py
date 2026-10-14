@@ -418,7 +418,7 @@ def flatten_aligned_results(
 
 def main():
     CALC_THRESHOLDS = False
-    ANOMALY_THRESHOLDS = [3.099, 3.458, 3.548]
+    ANOMALY_THRESHOLDS = [1.808, 1.980, 2.319]
 
     USE_ANOMALY_FILE = False
 
@@ -429,7 +429,7 @@ def main():
     # 1. Load pretrained model
     # -----------------------------------------------------
     model_path = f"{cfg.DS}_{model_config}_tnn_winding_baseline.pt"
-    #model_path = f"ds1_{model_config}_tnn_winding_baseline.pt"
+    #model_path = f"ds2_{model_config}_tnn_winding_baseline.pt"
     model, metadata = load_tnn(model_path, cfg.DEVICE)
 
     input_cols = metadata["input_cols"]

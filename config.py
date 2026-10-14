@@ -26,7 +26,7 @@ TS_COL = "Created"
 
 DS = "ds1"
 CONFIG = "MC4"
-GRID_SEARCH = True
+GRID_SEARCH = False
 
 # ---------------------------------------------------------
 # Data model configuration shared by all methods

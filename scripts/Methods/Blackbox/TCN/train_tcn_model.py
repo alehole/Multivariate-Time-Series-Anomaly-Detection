@@ -168,6 +168,7 @@ def load_and_prepare_data(
     data = data.rename(columns=cfg.RENAME_MAP)
 
     return data, dt_s
+
 def main():
     set_reproducibility(cfg.SEED)
     model_config = cfg.CONFIG

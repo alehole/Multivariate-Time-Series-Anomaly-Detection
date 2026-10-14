@@ -169,7 +169,7 @@ def load_and_prepare_test_data(
 
 def main():
     CALC_THRESHOLDS = False
-    ANOMALY_THRESHOLDS = [2.531, 2.767, 2.629]
+    ANOMALY_THRESHOLDS = [2.042, 2.047, 2.079]
 
     model_config = cfg.CONFIG
     show_anomalies = True
@@ -179,7 +179,7 @@ def main():
 
     model_type = method_cfg.RNN_MODEL_TYPE
     model, metadata = load_trained_recurrent_model(model_path=f"{cfg.DS}_{model_config}_{model_type.lower()}_winding_baseline.pt", device=cfg.DEVICE)
-    #model, metadata = load_trained_recurrent_model(model_path=f"ds1_{model_config}_{model_type.lower()}_winding_baseline.pt", device=cfg.DEVICE)
+    #model, metadata = load_trained_recurrent_model(model_path=f"ds2_{model_config}_{model_type.lower()}_winding_baseline.pt", device=cfg.DEVICE)
 
     x_scaler = metadata["x_scaler"]
     y_scaler = metadata["y_scaler"]
