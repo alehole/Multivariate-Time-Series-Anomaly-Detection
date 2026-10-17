@@ -137,24 +137,14 @@ def main():
     # EXPERIMENT CONFIGURATION
     # =====================================================
 
-    # Generic sensor name from config.py
-    sensor = "T1" # T1 # T5 end bearing
-    # Select ONE synthetic fault
-    fault = "F2"
 
-    # Resolve to DS-specific raw sensor name
-    col = get_raw_sensor_name(sensor)
 
     # =====================================================
     # PATHS
     # =====================================================
 
     train_path = data_path/"train_test_split"/f"{cfg.DS}_generator_train.csv"
-    input_path = data_path/"train_test_split"/f"{cfg.DS}_generator_test.csv"
-    output_dir = data_path/"train_test_split"/"with_anomalies"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir/f"{cfg.DS}_{fault}_{sensor}_test.csv"
-    plot_path = output_dir/f"{cfg.DS}_{fault}_{sensor}_comparison.png"
+
 
     # =====================================================
     # LOAD TRAINING DATA
@@ -162,17 +152,22 @@ def main():
 
     train_data = pd.read_csv(train_path)
 
+    # Generic sensor name from config.py
+    #sensor = "T1" # T1 # T5 end bearing
+    sensor = "T6"  # Exh
+    # Select ONE synthetic fault
+    fault = "F4"
     # =====================================================
     # ANOMALY MAGNITUDES
     # =====================================================
-
+    col = get_raw_sensor_name(sensor)
     sigma_sensor = pd.to_numeric(train_data[col], errors="coerce").std()
-
-    noise_std = 0.5 * sigma_sensor
-    #noise_std = 2.0 * sigma_sensor
-    bias = 1.0 * sigma_sensor
-    #bias = 2.0 * sigma_sensor
-    final_drift = 2.0 * sigma_sensor
+    #noise_std = 0.5 * sigma_sensor
+    noise_std = 1.0 * sigma_sensor
+    #bias = 1.0 * sigma_sensor
+    bias = 2.0 * sigma_sensor
+    #final_drift = 2.0 * sigma_sensor
+    final_drift = 4.0 * sigma_sensor
 
     print(f"Sensor standard deviation : {sigma_sensor:.3f}")
     print(f"Noise std                 : {noise_std:.3f}")
@@ -182,6 +177,13 @@ def main():
     # =====================================================
     # LOAD ORIGINAL TEST DATA
     # =====================================================
+    input_path = data_path/"train_test_split"/f"{cfg.DS}_generator_test.csv"
+    output_dir = data_path/"train_test_split"/"with_anomalies"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir/f"{cfg.DS}_{fault}_{sensor}_test.csv"
+    plot_path = output_dir/f"{cfg.DS}_{fault}_{sensor}_comparison.png"
+    # Resolve to DS-specific raw sensor name
+
 
     data = pd.read_csv(input_path)
     original_data = data.copy(deep=True)

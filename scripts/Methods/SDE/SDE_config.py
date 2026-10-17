@@ -4,7 +4,7 @@ import config as cfg
 # ---------------------------------------------------------
 # SDE model selection
 # ---------------------------------------------------------
-MODEL_OPTION = "2state_A"
+MODEL_OPTION = "2state_B"
 
 # ---------------------------------------------------------
 # SDE run configuration
@@ -42,22 +42,22 @@ q = 0.9  # process-noise standard deviation [°C]
 
 # 2R2C_A
 # Measurement-noise standard deviations [°C]
-r1 = 0.7 # U-winding measurement std [°C]
-r2 = 0.5 # end-bearing measurement std [°C]
+#r1 = 0.7 # U-winding measurement std [°C]
+#r2 = 0.5 # end-bearing measurement std [°C]
 
 # Process-noise standard deviations [°C per sample]
-q1 = 0.9
-q2 = 6.0
+#q1 = 0.9
+#q2 = 6.0
 
 
 # 2R2C_B
 # Measurement-noise standard deviations [°C]
-#r1 = 0.7 # U-winding measurement std [°C]
-#r2 = 0.7 # end-bearing measurement std [°C]
+r1 = 0.7 # U-winding measurement std [°C]
+r2 = 0.7 # end-bearing measurement std [°C]
 
 # Process-noise standard deviations [°C per sample]
-#q1 = 0.95
-#q2 = 0.95
+q1 = 0.95
+q2 = 0.95
 
 MODEL_CONFIGS = {
     "1state": {

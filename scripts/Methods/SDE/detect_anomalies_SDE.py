@@ -18,7 +18,6 @@ from Visualization.residual_plots import (
     plot_residuals_inference,
 )
 
-
 def load_sde_checkpoint(path):
     path = Path(path)
 
@@ -35,8 +34,7 @@ def load_sde_checkpoint(path):
 
 def main():
     CALC_THRESHOLDS = False
-    ANOMALY_THRESHOLDS = [3.043, 0.632]
-
+    ANOMALY_THRESHOLDS = [0.595, 0.342]
 
     # -----------------------------------------------------
     # 1. Select fitted SDE and anomaly dataset
@@ -47,8 +45,9 @@ def main():
     if CALC_THRESHOLDS:
         test_path = data_path/"train_test_split"/"ds1_generator_val.csv"
     else:
-        test_path = data_path/"train_test_split"/ "ds1_generator_test.csv"
-        #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T5_test.csv"
+        #test_path = data_path/"train_test_split"/ "ds1_generator_test.csv"
+        #test_path = data_path / "toy_sim" / "toy_generator_test.csv"
+        test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T6_test_2.csv"
 
     # -----------------------------------------------------
     # 2. Load fitted SDE
@@ -76,15 +75,7 @@ def main():
     # 3. Load anomaly-injected test data
     # -----------------------------------------------------
 
-    val_path = data_path / "train_test_split" / "ds1_generator_val.csv"
-    test_path = data_path / "train_test_split" / "ds1_generator_test.csv"
 
-    df_val = load_data(
-        val_path,
-        cfg.TS_COL,
-        sensor_cols,
-        rename_map
-    )
 
     df_test = load_data(
         test_path,
@@ -162,10 +153,60 @@ def main():
             f"{threshold_i:.3f} °C"
         )
 
-    anomalies = (
-                        np.abs(residuals) > ANOMALY_THRESHOLDS
-                ) | missing_measurements
+    # -----------------------------------------------------
+    # Raw threshold exceedances
+    # -----------------------------------------------------
+    threshold_exceeded = (
+            np.abs(residuals) > ANOMALY_THRESHOLDS
+    )
 
+    # -----------------------------------------------------
+    # Check whether samples are consecutive in time
+    # -----------------------------------------------------
+    timestamps = pd.to_datetime(
+        df_test[cfg.TS_COL],
+        errors="coerce",
+        utc=True,
+    )
+
+    delta_t = timestamps.diff().dt.total_seconds().to_numpy()
+
+    consecutive_time = np.zeros(
+        len(df_test),
+        dtype=bool,
+    )
+
+    dt_s = checkpoint["dt_s"]
+
+    consecutive_time[1:] = np.isclose(
+        delta_t[1:],
+        dt_s,
+        rtol=0.05,
+    )
+
+    # -----------------------------------------------------
+    # Require two consecutive threshold exceedances
+    # -----------------------------------------------------
+    persistent_anomalies = np.zeros_like(
+        threshold_exceeded,
+        dtype=bool,
+    )
+
+    persistent_anomalies[1:] = (
+            threshold_exceeded[1:]
+            & threshold_exceeded[:-1]
+            & consecutive_time[1:, None]
+    )
+
+    # Missing measurements remain immediate anomalies
+    anomalies = (
+            persistent_anomalies
+            | missing_measurements
+    )
+
+    # -----------------------------------------------------
+    # Store results
+    # -----------------------------------------------------
     result_df = df_test[[cfg.TS_COL, *meas_cols]].copy()
 
     anomaly_cols = []
@@ -181,7 +222,6 @@ def main():
     result_df["any_anomaly"] = (
         result_df[anomaly_cols].any(axis=1)
     )
-
     # -----------------------------------------------------
     # 8. Results
     # -----------------------------------------------------
@@ -274,7 +314,7 @@ def main():
         x_sim_test,
         x_pred,
         x_hat,
-        title="Testing: Model vs EKF",
+        title="Testing: Model vs KF",
         target_cols=["T1"],
     )
 
