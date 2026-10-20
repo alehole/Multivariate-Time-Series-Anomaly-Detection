@@ -12,6 +12,8 @@ def timestamp_report(df, ts_col: str) -> dict:
     total_duration = ts_valid.max() - ts_valid.min()
     total_hours = float(total_duration.total_seconds() / 3600)
     total_days = float(total_duration.total_seconds() / (24 * 3600))
+    dt_regular = dt_s[dt_s <= 180]
+
 
     report = {
         "rows_total": int(len(df)),
@@ -24,7 +26,12 @@ def timestamp_report(df, ts_col: str) -> dict:
         "total_days": total_days,
 
         "avg_sampling_time_s": float(dt_s.mean()),
+        "avg_sampling_time_regular_s": float(dt_regular.mean()),
         "median_sampling_time_s": float(dt_s.median()),
+        "std_sampling_time_s": float(dt_s.std()),
+        "std_sampling_time_regular_s": float(dt_regular.std()),
+
+
         "p90_sampling_time_s": float(dt_s.quantile(0.90)), # 90% of all sampling intervals are shorter than or equal to this value
         "p95_sampling_time_s": float(dt_s.quantile(0.95)),  # 95% of all sampling intervals are shorter than or equal to this value
         "p99_sampling_time_s": float(dt_s.quantile(0.99)),  # 99% of all sampling intervals are shorter than or equal to this value

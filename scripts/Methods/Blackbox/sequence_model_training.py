@@ -1,21 +1,6 @@
 import torch
 from torch import Tensor
 
-def masked_mse_loss_orig(y_hat, y_true, mask):
-    """
-    y_hat:  (B, T, F)
-    y_true: (B, T, F)
-    mask:   (B, T)
-    """
-
-    mask = mask.unsqueeze(-1)  # (B, T, 1)
-
-    loss = (y_hat - y_true) ** 2
-    loss = loss * mask
-
-    return loss.sum() / mask.sum().clamp(min=1.0)
-
-
 def masked_mse_loss(
     y_hat: Tensor,
     y_true: Tensor,

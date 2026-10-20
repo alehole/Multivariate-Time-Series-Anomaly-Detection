@@ -5,13 +5,11 @@ from sklearn.preprocessing import RobustScaler, StandardScaler
 from pathlib import Path
 import config as cfg
 
-
 def scale_data(data: pd.DataFrame, cols, scaler) -> pd.DataFrame:
     scaled_data = data.copy()
     scaled_data[cols] = scaler.fit_transform(data[cols])
 
     return scaled_data
-
 
 def plot_per_sensor(
     data,
@@ -100,7 +98,6 @@ def analyze_distribution_folder(
 
         print(f"[OK] {tag}: distribution plots saved.")
 
-
 def main():
     DATASET: int = 1
 
@@ -115,8 +112,6 @@ def main():
         out_root=Path(cfg.DATA_PATH / "EDA" / f"DS{DATASET}"),
         bins=50,
     )
-
-
 
 if __name__ == "__main__":
     main()

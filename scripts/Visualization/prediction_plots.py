@@ -98,8 +98,6 @@ def plot_predicted_vs_actual_inference(
         title="Predicted vs Actual Temperatures",
     )
 
-
-
 def plot_actual_vs_predicted(
     actual_df: pd.DataFrame,
     predicted: np.ndarray,
