@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import chi2
 from scipy.optimize import minimize
 
-from ekf import run_kf
+from kalman_filter import run_kf
 from SDE_config import(
     THETA0,
     LOWER_BOUND,

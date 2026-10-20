@@ -7,7 +7,7 @@ import config as cfg
 import pandas as pd
 
 from misc.data import load_data
-from ekf import run_kf
+from kalman_filter import run_kf
 
 from Visualization.prediction_plots import (
     plot_actual_vs_predicted,
