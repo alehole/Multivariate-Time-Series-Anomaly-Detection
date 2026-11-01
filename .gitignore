@@ -6,3 +6,5 @@ __pycache__/
 *.pt
 !trained_models/*.pt
 *.html
+
+scripts/Methods/TNN/results/*
