@@ -33,21 +33,21 @@ PIPELINE = [
     ("Train/Val/Test split", train_val_test_split, True),
 
     # 3. Exploratory Data Analysis
-    ("Sensor statistics", sensor_statistics, False),
-    ("Compare sensors", compare_sensors, False),
-    ("Correlation analysis", correlation_analysis, False),
-    ("Auto correlation", auto_correlation, False),
-    ("Cross correlation", cross_correlation, False),
-    ("Plot distributions", plot_distributions, False),
+    ("Sensor statistics", sensor_statistics, True),
+    ("Compare sensors", compare_sensors, True),
+    ("Correlation analysis", correlation_analysis, True),
+    ("Auto correlation", auto_correlation, True),
+    ("Cross correlation", cross_correlation, True),
+    ("Plot distributions", plot_distributions, True),
     ("Plot distributions v2", plot_distributions_v2, True),
-    ("Plot sensors", plot_sensors, False),
-    ("Plot sensors v2", plot_sensors_v2, False),
-    ("Sea state", sea_state, False),
-    ("Temperature", temperature, False),
+    ("Plot sensors", plot_sensors, True),
+    ("Plot sensors v2", plot_sensors_v2, True),
+    ("Sea state", sea_state, True),
+    ("Temperature", temperature, True),
 
     # 4. Visualization
-    ("Plotly plot", plotly_plot, False),
-    ("Vessel location", vessel_loc, False),
+    ("Plotly plot", plotly_plot, True),
+    ("Vessel location", vessel_loc, True),
 ]
 
 
