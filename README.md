@@ -173,6 +173,18 @@ data/
         └── LiveData.csv
 ```
 
+### Required Python Libraries
+
+The required Python libraries are listed in `requirements.txt`.
+Install all dependencies using:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+It is recommended to use a Python virtual environment to avoid dependency conflicts.
+
+
 ### Author
 
 #### Aleksander Wad Holthe
