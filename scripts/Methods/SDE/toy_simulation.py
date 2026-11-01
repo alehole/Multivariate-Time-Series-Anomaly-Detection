@@ -16,16 +16,16 @@ DT_SECONDS = 60.0
 SIMULATION_HOURS = 72.0
 MEASUREMENT_NOISE_STD = 0.5
 def main():
-    USE_REAL_POWER = True
+    USE_REAL_POWER = False
     OUTPUT_DIR = Path(cfg.DATA_PATH) / "toy_sim"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     # ---------------------------------------------------------
     # Synthetic generator power
     # ---------------------------------------------------------
     if USE_REAL_POWER:
-        real_df = pd.read_csv(sde_cfg.train_path)
+        real_df = pd.read_csv(sde_cfg.CSV_TRAIN)
         real_df["Created"] = pd.to_datetime(real_df["Created"], format="ISO8601", utc=True)
-        power = real_df["POWER_kW"].values
+        power = real_df["P"].values
         # Elapsed time based on the actual timestamps.
         timestamps = real_df[cfg.TS_COL]
         time_s = (

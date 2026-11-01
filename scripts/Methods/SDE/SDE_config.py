@@ -4,12 +4,12 @@ import config as cfg
 # ---------------------------------------------------------
 # SDE model selection
 # ---------------------------------------------------------
-MODEL_OPTION = "2state_B"
+MODEL_OPTION = "1state"
 
 # ---------------------------------------------------------
 # SDE run configuration
 # ---------------------------------------------------------
-RUN_TOY_CHECK = False
+RUN_TOY_CHECK = True
 
 RUN_PL1 = False
 RUN_PL2 = False
@@ -160,6 +160,7 @@ H = selected["H"]
 if RUN_TOY_CHECK:
     CSV_TRAIN = cfg.DATA_PATH / "toy_sim" / "toy_generator_train.csv"
     CSV_TEST = cfg.DATA_PATH / "toy_sim" / "toy_generator_test.csv"
+    CSV_FULL = cfg.DATA_PATH / "toy_sim" / "toy_generator_1state.csv"
 else:
     CSV_TRAIN = cfg.TRAIN_PATH
     CSV_TEST = cfg.TEST_PATH
