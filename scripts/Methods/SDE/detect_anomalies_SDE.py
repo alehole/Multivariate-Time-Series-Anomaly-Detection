@@ -45,9 +45,10 @@ def main():
     if CALC_THRESHOLDS:
         test_path = data_path/"train_test_split"/"ds1_generator_val.csv"
     else:
-        #test_path = data_path/"train_test_split"/ "ds1_generator_test.csv"
+        test_path = data_path/"train_test_split"/ "ds1_generator_test.csv"
+        #test_path = data_path / "train_test_split" / "ds1_generator_test.csv"
         #test_path = data_path / "toy_sim" / "toy_generator_test.csv"
-        test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T6_test_2.csv"
+        #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F3_T1_test.csv"
 
     # -----------------------------------------------------
     # 2. Load fitted SDE

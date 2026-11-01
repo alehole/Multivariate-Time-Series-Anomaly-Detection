@@ -210,7 +210,7 @@ def main():
     plot_corr(
         corr_df,
         save_path=output_dir / f"correlation_matrix_{tag}.png",
-        show=True,
+        show=False,
     )
 
 
@@ -263,7 +263,7 @@ def main():
     plot_corr(
         corr_df,
         save_path=output_dir / f"correlation_matrix_{tag}.png",
-        show=True,
+        show=False,
     )
 
 

@@ -26,7 +26,7 @@ TS_COL = "Created"
 
 DS = "ds1"
 CONFIG = "MC4"
-GRID_SEARCH = True
+GRID_SEARCH = False
 
 # ---------------------------------------------------------
 # Data model configuration shared by all methods
@@ -119,8 +119,7 @@ MODEL_CONFIGS = {
         "target_cols": ["T3"],
     },
     "MC9": {
-        "input_cols": ["E1", ""
-                             "", "T5", "T6", "T7", "T2"],
+        "input_cols": ["E1","T4", "T5", "T6", "T7", "T2"],
         "target_cols": ["T1"],
     },
 }

@@ -166,8 +166,9 @@ def load_trained_tcn(
     )
 
 def main():
-    CALC_THRESHOLDS = False
-    ANOMALY_THRESHOLDS = [1.978, 2.313, 2.126]
+    CALC_THRESHOLDS = True
+    ANOMALY_THRESHOLDS = [1.978, 2.313, 2.126] # DS1
+    ANOMALY_THRESHOLDS = [1.400, 1.508, 1.608]  # DS2
 
     model_config = cfg.CONFIG
     # -----------------------------------------------------
@@ -194,8 +195,8 @@ def main():
     # -----------------------------------------------------
     data_path = Path(cfg.DATA_PATH)
 
-    test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F2_T6_test_1.csv"
-   # test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
+    #test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F2_T6_test_1.csv"
+    test_path = data_path/ "train_test_split"/ f"{cfg.DS}_generator_test.csv"
     (
         test_data,
         actual_df,

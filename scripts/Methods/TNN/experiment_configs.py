@@ -8,10 +8,25 @@ TNN_SEARCH_SPACE = {
     "tbptt_size": [50, 100, 200, 300],
 }
 
-TNN_TRAINING_CONFIG = {
+TNN_TRAINING_CONFIG_DS1 = {
     "n_epochs": 200,
     "lr": 0.05,
-    "tbptt_size": 128,
+    "tbptt_size": 100,
+    "weight_decay": 0.001,
+    "n_neurons": 512,
+}
+
+TNN_TRAINING_CONFIG_DS2 = {
+    "n_epochs": 200,
+    "lr": 0.03,
+    "tbptt_size": 200,
+    "weight_decay": 0.001,
+    "n_neurons": 512,
+}
+TNN_TRAINING_CONFIG = {
+    "n_epochs": 200,
+    "lr": 0.03,
+    "tbptt_size": 200,
     "weight_decay": 0.001,
     "n_neurons": 512,
 }

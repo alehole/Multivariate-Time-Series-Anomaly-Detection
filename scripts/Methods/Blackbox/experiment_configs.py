@@ -15,20 +15,6 @@ WINDOW_STEPS = 300
 # =========================================================
 TCN_MODEL_TYPE = "TCN"
 
-TCN_MODEL_CONFIG = {
-    "input_size": len(cfg.INPUT_COLS),
-    "output_size": len(cfg.TARGET_COLS),
-    "channels": (32, 64, 64, 64),
-    "kernel_size": 7,
-    "dropout": 0.3,
-}
-
-TCN_TRAINING_CONFIG = {
-    **COMMON_TRAINING_CONFIG,
-    "lr": 0.003,
-    "weight_decay": 0.0001,
-}
-
 TCN_SEARCH_SPACE = {
     "channels": [
         (32, 32, 32),
@@ -54,25 +40,56 @@ TCN_SEARCH_SPACE = {
 }
 
 
+TCN_MODEL_CONFIG_DS1 = {
+    "input_size": len(cfg.INPUT_COLS),
+    "output_size": len(cfg.TARGET_COLS),
+    "channels": (32, 64, 64, 64),
+    "kernel_size": 7,
+    "dropout": 0.3,
+}
+
+TCN_TRAINING_CONFIG_DS1 = {
+    **COMMON_TRAINING_CONFIG,
+    "lr": 0.003,
+    "weight_decay": 0.0001,
+}
+
+TCN_MODEL_CONFIG_DS2 = {
+    "input_size": len(cfg.INPUT_COLS),
+    "output_size": len(cfg.TARGET_COLS),
+    "channels": (32, 64, 64, 64),
+    "kernel_size": 7,
+    "dropout": 0.0,
+}
+
+TCN_TRAINING_CONFIG_DS2 = {
+    **COMMON_TRAINING_CONFIG,
+    "lr": 0.003,
+    "weight_decay": 0.0001,
+}
+
+TCN_MODEL_CONFIG = {
+    "input_size": len(cfg.INPUT_COLS),
+    "output_size": len(cfg.TARGET_COLS),
+    "channels": (32, 64, 64, 64),
+    "kernel_size": 7,
+    "dropout": 0.0,
+}
+
+TCN_TRAINING_CONFIG = {
+    **COMMON_TRAINING_CONFIG,
+    "lr": 0.003,
+    "weight_decay": 0.0001,
+}
+
+
+
+
+
 # =========================================================
 # LSTM
 # =========================================================
 RNN_MODEL_TYPE = "LSTM"
-
-RNN_MODEL_CONFIG = {
-    "input_size": len(cfg.INPUT_COLS),
-    "output_size": len(cfg.TARGET_COLS),
-    "hidden_size": 256,
-    "num_layers": 3,
-    "dropout": 0.1,
-    "model_type": RNN_MODEL_TYPE,
-}
-
-RNN_TRAINING_CONFIG = {
-    **COMMON_TRAINING_CONFIG,
-    "lr":   0.003,
-    "weight_decay": 0,
-}
 
 RNN_SEARCH_SPACE = {
     "hidden_size": [64, 128, 256],
@@ -91,4 +108,50 @@ RNN_SEARCH_SPACE = {
         1e-4,
         1e-3,
     ],
+}
+
+RNN_MODEL_CONFIG_DS1 = {
+    "input_size": len(cfg.INPUT_COLS),
+    "output_size": len(cfg.TARGET_COLS),
+    "hidden_size": 256,
+    "num_layers": 3,
+    "dropout": 0.1,
+    "model_type": RNN_MODEL_TYPE,
+}
+
+RNN_TRAINING_CONFIG_DS1 = {
+    **COMMON_TRAINING_CONFIG,
+    "lr":   0.003,
+    "weight_decay": 0,
+}
+
+
+RNN_MODEL_CONFIG_DS2 = {
+    "input_size": len(cfg.INPUT_COLS),
+    "output_size": len(cfg.TARGET_COLS),
+    "hidden_size": 256,
+    "num_layers": 3,
+    "dropout": 0.0,
+    "model_type": RNN_MODEL_TYPE,
+}
+
+RNN_TRAINING_CONFIG_DS2 = {
+    **COMMON_TRAINING_CONFIG,
+    "lr": 0.003,
+    "weight_decay": 0.001,
+}
+
+RNN_MODEL_CONFIG = {
+    "input_size": len(cfg.INPUT_COLS),
+    "output_size": len(cfg.TARGET_COLS),
+    "hidden_size": 256,
+    "num_layers": 3,
+    "dropout": 0.0,
+    "model_type": RNN_MODEL_TYPE,
+}
+
+RNN_TRAINING_CONFIG = {
+    **COMMON_TRAINING_CONFIG,
+    "lr": 0.003,
+    "weight_decay": 0.001,
 }

@@ -192,8 +192,6 @@ def main():
 
     dt_s = train_dt_s  # sampling interval (same across splits)
 
-
-
     # -----------------------------------------------------
     # Profile each split independently
     # -----------------------------------------------------

@@ -418,7 +418,8 @@ def flatten_aligned_results(
 
 def main():
     CALC_THRESHOLDS = False
-    ANOMALY_THRESHOLDS = [1.808, 1.980, 2.319]
+    ANOMALY_THRESHOLDS = [1.808, 1.980, 2.319] # DS1
+    #ANOMALY_THRESHOLDS = [2.130, 1.481, 1.745] # DS2
 
     USE_ANOMALY_FILE = True
 
@@ -451,7 +452,7 @@ def main():
     # 2. Load and prepare anomaly test dataset
     # -----------------------------------------------------
     if USE_ANOMALY_FILE:
-        test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F2_T6_test_2.csv"
+        test_path = data_path / "train_test_split" / "with_anomalies" / "ds1_F4_T1_test.csv"
     else:
         test_path = data_path/"train_test_split"/f"{cfg.DS}_generator_test.csv"
 

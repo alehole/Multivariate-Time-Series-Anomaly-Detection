@@ -65,7 +65,7 @@ project-root/
 │   │
 │   └── run_pipeline.py           # Full preprocessing and EDA pipeline
 │
-├── config.py                      # Project configuration
+├── config.py                      # Global model configurations
 ├── tag_definitions.json          # SCADA sensor tag definitions
 ├── .gitignore
 └── README.md
